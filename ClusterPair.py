@@ -87,6 +87,14 @@ class ClusterPair:
 
         return insertion_line + "\n" + self.fwd_cluster.cluster_line(cluster_ID, library_name) + "\n" + self.rev_cluster.cluster_line(cluster_ID, library_name) + "\n" + read_lines
 
+    def to_bed(self):
+        (insertion_interval_start, insertion_interval_end) = self.calc_insertion_interval()
+        cluster_pair_chrom = self.fwd_cluster.chr
+
+
+        coords = "%d\t%d" % (insertion_interval_start, insertion_interval_end)
+        bed_line = "\t".join([cluster_pair_chrom, coords])
+        return bed_line
 
     def to_gff(self, cluster_pair_ID, library_name, TE_annot_tag):
         fwd_TE_tags = self.fwd_cluster.get_TE_tags(TE_annot_tag)
