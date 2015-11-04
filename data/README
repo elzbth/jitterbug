@@ -1,0 +1,10 @@
+annotations with appropriate Name=unique_id tag in the 9th column, to use with "-n Name"
+
+Arabidopsis thaliana annotation in version TAIR10, and includes the curated MITE annotations as published in Henaff et al 2014, Plant Journal
+
+Human annotations are in version hg19, and have been divided up by chromosome -- this is to circumvent the file size limit imposed by github. Use
+
+cat hg19* > hg19.te_annots.gff 
+
+to combine them. 
+
