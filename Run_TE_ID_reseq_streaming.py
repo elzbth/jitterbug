@@ -60,11 +60,18 @@ def run_jitterbug_streaming(psorted_bamfile_name, verbose, te_annot, \
 
     # construct list of args 
     if not mem: 
-        args = ["samtools", "view", "-F", "3854", psorted_bamfile_name, "-o", filtered_bam_file_name]
+        args = ["samtools", "view", "-F", "3854", "-o", filtered_bam_file_name, psorted_bamfile_name]
     else:
-        args = ["samtools", "view", "-F", "1550", psorted_bamfile_name, "-o", filtered_bam_file_name]
+        args = ["samtools", "view", "-F", "1550", "-o", filtered_bam_file_name, psorted_bamfile_name]
+
+    print args
     # open subprocess 
-    disc_pair_filt = subprocess.Popen(args)
+    try:
+        disc_pair_filt = subprocess.Popen(args)
+    except Exception, e:
+        print "error using --streaming: is samtools not installed or in your PATH?"
+        sys.exit(1)
+    
     # wait till it finishes
     outcode = disc_pair_filt.wait()
 

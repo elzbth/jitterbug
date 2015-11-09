@@ -13,6 +13,7 @@ from pysam import csamtools
 import os
 
 import resource
+import gc
 
 from memory_profiler import profile
 
@@ -181,7 +182,8 @@ def run_jitterbug(psorted_bamfile_name, already_calc_discordant_reads, valid_dis
     if te_annot:
         discordant_bam_reader = BamReader(valid_discordant_reads_file_name, output_prefix)
         read_pair_one_overlap_TE_list = discordant_bam_reader.select_read_pair_one_overlap_TE_annot(te_annot, interval_size, min_mapq)
-        if not print_extra_output:
+
+        if not (print_extra_output or already_calc_discordant_reads):
             os.remove(valid_discordant_reads_file_name)
 
     else:
@@ -219,7 +221,8 @@ def run_jitterbug(psorted_bamfile_name, already_calc_discordant_reads, valid_dis
         # last tow args are bed file handle and streaming, unnecessary and False, in this version 
         all_clusters = cluster_list.generate_clusters_parallel(verbose, num_CPUs, bin_size, psorted_bamfile_name, "", False, min_cluster_size)
 
-
+    del read_pair_one_overlap_TE_list
+    gc.collect()
     if mem_debug:
             reportResource("5")
     time = datetime.datetime.now()
@@ -304,7 +307,8 @@ def run_jitterbug(psorted_bamfile_name, already_calc_discordant_reads, valid_dis
 
     run_stats = open(output_prefix + ".run_stats.txt", "w")
     run_stats.write("lib\t%s\n" % (library_name))
-    run_stats.write("coverage\t%s\n" % (coverage))
+    if not already_calc_discordant_reads:
+        run_stats.write("coverage\t%s\n" % (coverage))
     run_stats.write("runtime\t%s\n" % ( datetime.datetime.now() - start_time))
     run_stats.write("numCPUs\t%s\n" % (num_CPUs))
     run_stats.close()
