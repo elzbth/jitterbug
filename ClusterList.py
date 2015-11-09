@@ -25,23 +25,8 @@ class ClusterList:
     #cluster the read pairs according to the interval defined by the non-TE mapped read
     def generate_clusters_parallel(self, verbose, num_CPUs, bin_size, psorted_bamfile_name, bed_file_handle, streaming, min_cluster_size):
 
-###################### BEGIN PARALLEL VERSION ########################################
-
-        ################ CLUSTER BY CHR #######################
-        #cluster fwd intervals
-#        fwd_read_pairs = [read_pair for read_pair in self.read_pair_list if read_pair.interval_direction == "fwd"]
-#        fwd_clusters_by_chr = cluster_read_pairs_by_chr(fwd_read_pairs)
-#        print "********************* total fwd non-overlapping clusters found by chr: %d" % sum([len(chr_list) for chr_list in fwd_clusters_by_chr.values()])
-#
-#
-#
-#        #cluster rev intervals
-#        rev_read_pairs = [read_pair for read_pair in self.read_pair_list if read_pair.interval_direction == "rev"]
-#        rev_clusters_by_chr = cluster_read_pairs_by_chr(rev_read_pairs)
-#        print "********************* total rev non-overlapping clusters found by chr: %d" % sum([len(chr_list) for chr_list in rev_clusters_by_chr.values()])
 
 
-        ############################ END CLUSTER BY CHR ###########################
 
         ################ CLUSTER BY BIN #######################
         #cluster fwd intervals
@@ -105,14 +90,20 @@ class ClusterList:
         print "sending %d jobs to %d processes" % (len(input_arg_list), num_CPUs)
 
 
-        pool = Pool(num_CPUs)
+        pool = Pool(num_CPUs, maxtasksperchild=1)
 
-        all_clusters_by_bin = pool.map(pair_clusters_by_bin, input_arg_list)
+        dummy_arg_list = [("string1", "string2")] * len(input_arg_list)
+
+        all_clusters_by_bin = pool.imap(dummy_func, dummy_arg_list)
+
+        #all_clusters_by_bin = pool.imap(pair_clusters_by_bin, input_arg_list)
 
         pool.close()
         pool.join()
 
 
+        #for mem debug
+        return list(all_clusters_by_bin)
 
 
         ################ END NEW PARALLEL VERSION #################################
@@ -134,7 +125,7 @@ class ClusterList:
             bed_file_handle.write(bed_string)
             bed_file_handle.close()
 
-            return all_clusters_by_bin
+            
 
         else:
             cluster_counts = [(len(p), len(f), len(r)) for (p,f,r) in all_clusters_by_bin]
@@ -144,7 +135,7 @@ class ClusterList:
 
             
 
-            return all_clusters_by_bin
+        return list(all_clusters_by_bin)
 
 
 ##################### END PARALLEL VERSION #############################################
@@ -237,6 +228,11 @@ class ClusterList:
 
 
 ############################### END NON PARALLEL VERSION ########################################################
+
+def dummy_func((string1, string2)):
+    pass
+
+
 
 
 def pair_clusters_by_bin((key, fwd_clusters, rev_clusters, bam_file_name, verbose, bed_file_handle, streaming, min_cluster_size)):

@@ -12,8 +12,10 @@ import subprocess
 from pysam import csamtools
 import os
 
+from memory_profiler import profile
 
 
+@profile
 def run_jitterbug_streaming(psorted_bamfile_name, verbose, te_annot, \
     te_seqs, library_name, num_sdev, output_prefix, TE_name_tag, parallel, num_CPUs, bin_size, min_mapq, generate_test_bam, print_extra_output, conf_lib_stats, mem, min_cluster_size):
 
@@ -60,9 +62,9 @@ def run_jitterbug_streaming(psorted_bamfile_name, verbose, te_annot, \
 
     # construct list of args 
     if not mem: 
-        args = ["samtools", "view", "-F", "3854", "-o", filtered_bam_file_name, psorted_bamfile_name]
+        args = ["samtools", "view", "-h" , "-F", "3854", "-o", filtered_bam_file_name, psorted_bamfile_name]
     else:
-        args = ["samtools", "view", "-F", "1550", "-o", filtered_bam_file_name, psorted_bamfile_name]
+        args = ["samtools", "view", "-h", "-F", "1550", "-o", filtered_bam_file_name, psorted_bamfile_name]
 
     print args
     # open subprocess 
@@ -123,36 +125,6 @@ def run_jitterbug_streaming(psorted_bamfile_name, verbose, te_annot, \
         sys.exit(1) 
 
 
-        # # Get the mean and sdev of insert size from the original bam file
-        # print "calculating mean insert size..."
-        # iterations = 1000000
-        # (isize_mean, isize_sdev, rlen_mean, rlen_sdev) = psorted_bam_reader.calculate_mean_sdev_isize(iterations)
-        # print "mean fragment length over %d reads: %.2f" % (iterations, isize_mean)
-        # print "standard deviation of fragment_length: %.2f" % (isize_sdev)
-        # print "mean read length: %.2f" % (rlen_mean)
-        # print "standard deviation of read length: %.2f" % (rlen_sdev)
-
-        # stats_file = open(output_prefix + ".read_stats.txt", "w")
-        # stats_file.write("fragment_length\t%.2f\n" % (isize_mean))
-        # stats_file.write("fragment_length_SD\t%.2f\n" % (isize_sdev))
-        # stats_file.write("read_length\t%.2f\n" % (rlen_mean))
-        # stats_file.write("read_length_SD\t%.2f" % (rlen_sdev))
-
-        # stats_file.close()
-
-        # #if fragment sdev is much larger than expected, there might be a problem with the reads of the mapping. Set as default 0.1*fragment length as a reasonable guess. 
-        # # This is necessary because aberrant values for sdev will mess up the interval overlap calculation and the filtering 
-        # if isize_sdev > 0.2*isize_mean:
-        #     isize_sdev = 0.1*isize_mean
-        #     print "WARNING: fragment length standard deviation seems way too large to be realistic.\\n\
-        #     There is maybe something weird with the flags in your bam mapping, or a very large number of large SV \\n\
-        #     that are messing up the count.\\n\
-        #     Setting the stdev to 0.1*fragment_length = %.2f for downstream calculations" % isize_sdev
-
-
-
-        # time = datetime.datetime.now()
-        # print "elapsed time: " + str(time - start_time)
 
     ################# Find valid discordant reads in given sorted bam file ################
     # This will print bam file(s) with the set(s) of valid discordant reads meaning
@@ -221,7 +193,8 @@ def run_jitterbug_streaming(psorted_bamfile_name, verbose, te_annot, \
     if te_annot:
         discordant_bam_reader = BamReader(valid_discordant_reads_file_name, output_prefix)
         read_pair_one_overlap_TE_list = discordant_bam_reader.select_read_pair_one_overlap_TE_annot(te_annot, interval_size, min_mapq)
-        os.remove(valid_discordant_reads_file_name)
+        if not print_extra_output:
+            os.remove(valid_discordant_reads_file_name)
 
     else:
 
@@ -264,10 +237,20 @@ def run_jitterbug_streaming(psorted_bamfile_name, verbose, te_annot, \
 
 
     ### retrieve reads in the intervals where insertions were predicted and use them to calculate allelic frequency (zygosity) of the predictions
-
     ins_regions_bam_name = output_prefix + ".insertion_regions.reads.bam"
+    
+    del read_pair_one_overlap_TE_list
+    del cluster_list
+
+
+    ###############
+    # for mem debug
+    return 0
+    ###############
+
+
     # construct list of args 
-    args = ["samtools", "view", "-hb", "-L", bed_file_name, psorted_bamfile_name, "-o", ins_regions_bam_name]
+    args = ["samtools", "view", "-hb", "-L", bed_file_name, "-o", ins_regions_bam_name, psorted_bamfile_name]
     # open subprocess 
     int_bed_reads_select = subprocess.Popen(args)
     # wait till it finishes
