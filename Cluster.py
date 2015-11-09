@@ -66,26 +66,26 @@ class Cluster:
         if self.chr != other.chr:
             return False
 
-        ### new version ###
-        # if other.intersection_start <= self.intersection_start and self.intersection_start <= other.intersection_end:
-        #     return True
-        # if other.intersection_start <= self.intersection_end and self.intersection_end <= other.intersection_end:
-        #     return True
-        # if self.intersection_start <= other.intersection_start and other.intersection_start <= self.intersection_end:
-        #     return True
-        # if self.intersection_start <= other.intersection_end and other.intersection_end <= self.intersection_end:
-        #     return True
+        ## new version ###
+        if other.intersection_start <= self.intersection_start and self.intersection_start <= other.intersection_end:
+            return True
+        if other.intersection_start <= self.intersection_end and self.intersection_end <= other.intersection_end:
+            return True
+        if self.intersection_start <= other.intersection_start and other.intersection_start <= self.intersection_end:
+            return True
+        if self.intersection_start <= other.intersection_end and other.intersection_end <= self.intersection_end:
+            return True
         ### end new version ###
 
         #### old version #####
-        if self.intersection_start in range(other.intersection_start, other.intersection_end + 1):
-            return True
-        if self.intersection_end in range(other.intersection_start, other.intersection_end + 1):
-            return True
-        if other.intersection_start in range(self.intersection_start, self.intersection_end + 1):
-            return True
-        if other.intersection_end in range(self.intersection_start, self.intersection_end + 1):
-            return True
+        # if self.intersection_start in range(other.intersection_start, other.intersection_end + 1):
+        #     return True
+        # if self.intersection_end in range(other.intersection_start, other.intersection_end + 1):
+        #     return True
+        # if other.intersection_start in range(self.intersection_start, self.intersection_end + 1):
+        #     return True
+        # if other.intersection_end in range(self.intersection_start, self.intersection_end + 1):
+        #     return True
         #### end old version ###
         return False
 
