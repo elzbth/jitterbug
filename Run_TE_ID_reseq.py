@@ -12,10 +12,24 @@ import subprocess
 from pysam import csamtools
 import os
 
+import resource
+
+from memory_profiler import profile
+
+
+def reportResource(point=""):
+    usage=resource.getrusage(resource.RUSAGE_SELF)
+    return '''%s: usertime=%s systime=%s mem=%s mb
+           '''%(point,usage[0],usage[1],
+                (usage[2]*resource.getpagesize())/1000000.0 )
+
 
 
 def run_jitterbug(psorted_bamfile_name, already_calc_discordant_reads, valid_discordant_reads_file_name, verbose, te_annot, \
     te_seqs, library_name, num_sdev, output_prefix, TE_name_tag, parallel, num_CPUs, bin_size, min_mapq, generate_test_bam, print_extra_output, conf_lib_stats, mem, min_cluster_size):
+
+
+    mem_debug = False
 
     # print te_annot
     # print min_mapq
@@ -25,6 +39,8 @@ def run_jitterbug(psorted_bamfile_name, already_calc_discordant_reads, valid_dis
     #NOTE: comment this later !!!!!!!!!!!!!!!!
     #sorted_bam_reader = BamReader(output_prefix + ".proper_pair.sorted.bam", output_prefix)
 
+    if mem_debug:
+        reportResource("1")
 
     print "processing " + psorted_bamfile_name
     if not output_prefix:
@@ -111,6 +127,8 @@ def run_jitterbug(psorted_bamfile_name, already_calc_discordant_reads, valid_dis
     #<bam_file_name>.valid_discordant_pairs or <bam_file_name>.valid_discordant_pairs_strict_rep depending on the value of -s
     if not already_calc_discordant_reads:
 
+        if mem_debug:
+            reportResource("2")
         
         valid_discordant_reads_file_name = output_prefix + ".valid_discordant_pairs.bam"
 
@@ -132,9 +150,14 @@ def run_jitterbug(psorted_bamfile_name, already_calc_discordant_reads, valid_dis
         bam_stats_file = open(output_prefix + ".bam_stats.txt", "w")
         for key, value in bam_stats.items():
             bam_stats_file.write("%s\t%d\n" % (key, value))
+
+        if mem_debug:
+            reportResource("3")
         bam_stats_file.close()
 
         time = datetime.datetime.now()
+        if mem_debug:
+            reportResource("4")
         print "elapsed time: " + str(time - start_time)
 
 
@@ -165,7 +188,8 @@ def run_jitterbug(psorted_bamfile_name, already_calc_discordant_reads, valid_dis
         #here you would map mate reads to TE sequences and whatnot.
         pass
 
-
+    if mem_debug:
+            reportResource("5")
     time = datetime.datetime.now()
     print "elapsed time: " + str(time - start_time)
 
@@ -187,7 +211,7 @@ def run_jitterbug(psorted_bamfile_name, already_calc_discordant_reads, valid_dis
     cluster_list = ClusterList(read_pair_one_overlap_TE_list)
 
     if not parallel:
-        (cluster_pairs, unpaired_fwd_clusters, unpaired_rev_clusters) = cluster_list.generate_clusters(verbose, psorted_bamfile_name, "", False, min_cluster_size)
+        (cluster_pairs, unpaired_fwd_clusters, unpaired_rev_clusters, bed_string) = cluster_list.generate_clusters(verbose, psorted_bamfile_name, "", False, min_cluster_size)
         all_clusters = [(cluster_pairs, unpaired_fwd_clusters, unpaired_rev_clusters)]
     #parallel version:
     else:
@@ -195,6 +219,8 @@ def run_jitterbug(psorted_bamfile_name, already_calc_discordant_reads, valid_dis
         all_clusters = cluster_list.generate_clusters_parallel(verbose, num_CPUs, bin_size, psorted_bamfile_name, "", False, min_cluster_size)
 
 
+    if mem_debug:
+            reportResource("5")
     time = datetime.datetime.now()
     print "elapsed time: " + str(time - start_time)
 

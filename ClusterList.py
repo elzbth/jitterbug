@@ -191,7 +191,7 @@ class ClusterList:
                 if fwd_cluster.is_overlapping_strict(rev_cluster):
                     new_cluster_pair = ClusterPair(fwd_cluster, rev_cluster)
                     if not streaming:
-                        reads = proper_pair_bam.fetch(new_cluster_pair.get_chr(), new_cluster_pair.get_insertion_int_start(), new_cluster_pair.get_insertion_int_end())
+                        reads = psorted_bamfile.fetch(new_cluster_pair.get_chr(), new_cluster_pair.get_insertion_int_start(), new_cluster_pair.get_insertion_int_end())
                         new_cluster_pair.calc_zygosity(reads)
                     else:
                         bed_line = new_cluster_pair.to_bed()
@@ -371,6 +371,10 @@ def cluster_read_pairs_by_chr_and_bin(read_pair_list, bin_size):
     """this generates a list of  maximal  clusters, ie sets of overlapping read pairs. note: these clusters can be themselves overlapping.
     returns a disctionary of lists of Cluster objects, one entry per bin"""
 
+    # if no bin is set, cluster by chromosome
+    if bin_size == None:
+        return cluster_read_pairs_by_chr(read_pair_list)
+
     #sort according to end position then chromosome. sort is stable so the second sort will not unsort the positions
     read_pair_list.sort(key=lambda read_pair: read_pair.interval_end)
     read_pair_list.sort(key=lambda read_pair: read_pair.interval_chr)
@@ -522,6 +526,11 @@ def remove_overlapping_clusters(cluster_list):
         #update current to next
         current_cluster = next_cluster
         current_cluster_is_overlapped = next_cluster_is_overlapped
+
+    # add last cluster if it is not overlapped
+    if not current_cluster_is_overlapped:
+        #add it to the list
+        non_overlapping_clusters.append(current_cluster)
 
     #for cluster in non_overlapping_clusters:
     #    print " ".join(read.str_int() for read in cluster)
