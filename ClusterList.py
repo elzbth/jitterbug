@@ -96,14 +96,14 @@ class ClusterList:
 
         # all_clusters_by_bin = pool.imap(dummy_func, input_arg_list)
 
-        all_clusters_by_bin = pool.imap(pair_clusters_by_bin, input_arg_list)
+        all_clusters_by_bin = pool.map(pair_clusters_by_bin, input_arg_list)
 
         pool.close()
         pool.join()
 
 
         #for mem debug
-        return list(all_clusters_by_bin)
+        # return list(all_clusters_by_bin)
 
 
         ################ END NEW PARALLEL VERSION #################################
@@ -135,7 +135,7 @@ class ClusterList:
 
             
 
-        return list(all_clusters_by_bin)
+        return all_clusters_by_bin
 
 
 ##################### END PARALLEL VERSION #############################################
@@ -224,7 +224,7 @@ class ClusterList:
                 print " ".join(read.str_int() for read in rev_cluster)
                 print " ".join(read.str_TE_annot_list() for read in rev_cluster)
 
-        return (cluster_pairs, None, None, bed_string)
+        return (cluster_pairs, [], [], bed_string)
 
 
 ############################### END NON PARALLEL VERSION ########################################################
@@ -301,9 +301,9 @@ def pair_clusters_by_bin((key, fwd_clusters, rev_clusters, bam_file_name, verbos
     #     return (cluster_pairs, unpaired_fwd_clusters, unpaired_rev_clusters)
 
     if streaming:
-        return (cluster_pairs, None, None, bed_string)
+        return (cluster_pairs, [], [], bed_string)
     else:
-        return (cluster_pairs, None, None)
+        return (cluster_pairs, [], [])
 
 
 
