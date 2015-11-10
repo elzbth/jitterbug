@@ -130,7 +130,7 @@ class ClusterPair:
         interval = self.minimal_interval()
         if interval == None:
             interval = self.intersection_interval_loose()
-            print "using loose def of interval!"
+            print("using loose def of interval!")
 
         return interval
 
@@ -292,7 +292,7 @@ class ClusterPair:
 
 
         union.sort()
-        print union
+        print(union)
 
 
         if len(union) == 1:

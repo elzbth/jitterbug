@@ -7,6 +7,7 @@ import pysam
 #from pysam import csamtools
 
 from multiprocessing import Pool
+import multiprocessing
 
 
 class ClusterList:
@@ -32,14 +33,14 @@ class ClusterList:
         #cluster fwd intervals
         fwd_read_pairs = [read_pair for read_pair in self.read_pair_list if read_pair.interval_direction == "fwd"]
         fwd_clusters_by_bin = cluster_read_pairs_by_chr_and_bin(fwd_read_pairs, bin_size)
-        print "********************* total fwd non-overlapping clusters found by bin: %d" % sum([len(chr_list) for chr_list in fwd_clusters_by_bin.values()])
+        print("********************* total fwd non-overlapping clusters found by bin: %d" % sum([len(chr_list) for chr_list in fwd_clusters_by_bin.values()]))
 
 
 
         #cluster rev intervals
         rev_read_pairs = [read_pair for read_pair in self.read_pair_list if read_pair.interval_direction == "rev"]
         rev_clusters_by_bin = cluster_read_pairs_by_chr_and_bin(rev_read_pairs, bin_size)
-        print "********************* total rev non-overlapping clusters found by bin: %d" % sum([len(chr_list) for chr_list in rev_clusters_by_bin.values()])
+        print("********************* total rev non-overlapping clusters found by bin: %d" % sum([len(chr_list) for chr_list in rev_clusters_by_bin.values()]))
 
 
         ############################ END CLUSTER BY BIN ###########################
@@ -87,8 +88,9 @@ class ClusterList:
 
         #print input_arg_list[0][0][0].readpair_list[0].read1
 
-        print "sending %d jobs to %d processes" % (len(input_arg_list), num_CPUs)
+        print("sending %d jobs to %d processes" % (len(input_arg_list), num_CPUs))
 
+        multiprocessing.set_start_method('spawn')
 
         pool = Pool(num_CPUs, maxtasksperchild=1)
 
@@ -96,14 +98,14 @@ class ClusterList:
 
         # all_clusters_by_bin = pool.imap(dummy_func, input_arg_list)
 
-        all_clusters_by_bin = pool.imap(pair_clusters_by_bin, input_arg_list)
+        all_clusters_by_bin = pool.map(pair_clusters_by_bin, input_arg_list)
 
         pool.close()
         pool.join()
 
 
         #for mem debug
-        return list(all_clusters_by_bin)
+        #return list(all_clusters_by_bin)
 
 
         ################ END NEW PARALLEL VERSION #################################
@@ -114,9 +116,9 @@ class ClusterList:
         if streaming:
 
             cluster_counts = [(len(p), len(f), len(r)) for (p,f,r,s) in all_clusters_by_bin]
-            print "******************total fwd single clusters found: %d" %  sum([f for (p,f,r) in cluster_counts])
-            print "******************total rev single clusters found: %d" %  sum([r for (p,f,r) in cluster_counts])
-            print "******************total cluster pairs found: %d" %  sum([p for (p,f,r) in cluster_counts])
+            print("******************total fwd single clusters found: %d" %  sum([f for (p,f,r) in cluster_counts]))
+            print("******************total rev single clusters found: %d" %  sum([r for (p,f,r) in cluster_counts]))
+            print("******************total cluster pairs found: %d" %  sum([p for (p,f,r) in cluster_counts]))
 
             bed_string = "\n".join([s for (p,f,r,s) in all_clusters_by_bin if s != ""])
 
@@ -129,13 +131,13 @@ class ClusterList:
 
         else:
             cluster_counts = [(len(p), len(f), len(r)) for (p,f,r) in all_clusters_by_bin]
-            print "******************total fwd single clusters found: %d" %  sum([f for (p,f,r) in cluster_counts])
-            print "******************total rev single clusters found: %d" %  sum([r for (p,f,r) in cluster_counts])
-            print "******************total cluster pairs found: %d" %  sum([p for (p,f,r) in cluster_counts])
+            print("******************total fwd single clusters found: %d" %  sum([f for (p,f,r) in cluster_counts]))
+            print("******************total rev single clusters found: %d" %  sum([r for (p,f,r) in cluster_counts]))
+            print("******************total cluster pairs found: %d" %  sum([p for (p,f,r) in cluster_counts]))
 
             
 
-        return list(all_clusters_by_bin)
+        return all_clusters_by_bin
 
 
 ##################### END PARALLEL VERSION #############################################
@@ -147,18 +149,18 @@ class ClusterList:
         fwd_read_pairs = [read_pair for read_pair in self.read_pair_list if read_pair.interval_direction == "fwd"]
         fwd_clusters = cluster_read_pairs_all(fwd_read_pairs)
 
-        print "******************total fwd clusters found: %d" %  len(fwd_clusters)
+        print("******************total fwd clusters found: %d" %  len(fwd_clusters))
         non_overlapping_fwd_clusters = remove_overlapping_clusters(fwd_clusters)
-        print "******************total fwd non-overlapping clusters found: %d" %  len(non_overlapping_fwd_clusters)
+        print("******************total fwd non-overlapping clusters found: %d" %  len(non_overlapping_fwd_clusters))
 
 
         #cluster rev intervals
         rev_read_pairs = [read_pair for read_pair in self.read_pair_list if read_pair.interval_direction == "rev"]
         rev_clusters = cluster_read_pairs_all(rev_read_pairs)
 
-        print "******************total rev clusters found: %d" % len(rev_clusters)
+        print("******************total rev clusters found: %d" % len(rev_clusters))
         non_overlapping_rev_clusters = remove_overlapping_clusters(rev_clusters)
-        print "******************total rev non-overlapping clusters found: %d" %  len(non_overlapping_rev_clusters)
+        print("******************total rev non-overlapping clusters found: %d" %  len(non_overlapping_rev_clusters))
 
         #bam_file_name = output_prefix + ".proper_pair.sorted.bam"
         psorted_bamfile = pysam.Samfile(psorted_bamfile_name, "rb")
@@ -192,7 +194,7 @@ class ClusterList:
                             bed_string = bed_string + "\n" + bed_line
                     if new_cluster_pair.insertion_int_end < new_cluster_pair.insertion_int_start:
                         if True:
-                            print "cluster pair not paired!"
+                            print("cluster pair not paired!")
                     else:
                         cluster_pairs.append(new_cluster_pair)
                         paired_fwd_clusters_indices.append(fwd_index)
@@ -211,43 +213,43 @@ class ClusterList:
 
 
 
-        print "******************total cluster pairs found: %d" %  len(cluster_pairs)
+        print("******************total cluster pairs found: %d" %  len(cluster_pairs))
         if verbose:
             for (fwd_cluster, rev_cluster) in cluster_pairs:
-                print "*************************cluster_pair:**************************************"
-                print "fwd cluster:"
-                print "cluster coordinates: %s %d %d" % (fwd_cluster[0].interval_chr, fwd_cluster[0].interval_start, fwd_cluster[-1].interval_end )
-                print " ".join(read.str_int() for read in fwd_cluster)
-                print " ".join(read.str_TE_annot_list() for read in fwd_cluster)
-                print "rev cluster:"
-                print "cluster coordinates: %s %d %d" % (rev_cluster[0].interval_chr, rev_cluster[0].interval_start, rev_cluster[-1].interval_end )
-                print " ".join(read.str_int() for read in rev_cluster)
-                print " ".join(read.str_TE_annot_list() for read in rev_cluster)
+                print("*************************cluster_pair:**************************************")
+                print("fwd cluster:")
+                print("cluster coordinates: %s %d %d" % (fwd_cluster[0].interval_chr, fwd_cluster[0].interval_start, fwd_cluster[-1].interval_end ))
+                print(" ".join(read.str_int() for read in fwd_cluster))
+                print(" ".join(read.str_TE_annot_list() for read in fwd_cluster))
+                print("rev cluster:")
+                print("cluster coordinates: %s %d %d" % (rev_cluster[0].interval_chr, rev_cluster[0].interval_start, rev_cluster[-1].interval_end ))
+                print(" ".join(read.str_int() for read in rev_cluster))
+                print(" ".join(read.str_TE_annot_list() for read in rev_cluster))
 
         return (cluster_pairs, None, None, bed_string)
 
 
 ############################### END NON PARALLEL VERSION ########################################################
 
-def dummy_func((key, fwd_clusters, rev_clusters, bam_file_name, verbose, bed_file_handle, streaming, min_cluster_size)):
-    return fwd_clusters, rev_clusters
 
 
 
 
-def pair_clusters_by_bin((key, fwd_clusters, rev_clusters, bam_file_name, verbose, bed_file_handle, streaming, min_cluster_size)):
+def pair_clusters_by_bin(param_list):
+
+    (key, fwd_clusters, rev_clusters, bam_file_name, verbose, bed_file_handle, streaming, min_cluster_size) = param_list
 
 
-    print "processing cluster pairs on %s" % (key)
+    print("processing cluster pairs on %s" % (key))
     #print "pairing clusters in parallel for chr %s" % fwd_clusters[0].chr
     non_overlapping_fwd_clusters = remove_overlapping_clusters(fwd_clusters)
     if verbose:
-        print "non overlapping fwd clusters\t%d" % (len(non_overlapping_fwd_clusters))
+        print("non overlapping fwd clusters\t%d" % (len(non_overlapping_fwd_clusters)))
     non_overlapping_rev_clusters = remove_overlapping_clusters(rev_clusters)
     if verbose:
-        print "non overlapping rev clusters\t%d" % (len(non_overlapping_rev_clusters))
+        print("non overlapping rev clusters\t%d" % (len(non_overlapping_rev_clusters)))
     if not streaming:
-        proper_pair_bam = pysam.Samfile(bam_file_name, "rb")
+        proper_pair_bam = pysam.AlignmentFile(bam_file_name, "rb")
     #print "haha"
 
 
@@ -277,7 +279,7 @@ def pair_clusters_by_bin((key, fwd_clusters, rev_clusters, bam_file_name, verbos
                 #print "poop"
                 if new_cluster_pair.get_insertion_int_end() < new_cluster_pair.get_insertion_int_start():
                     if True:
-                        print "cluster pair not paired!"
+                        print("cluster pair not paired!")
                 else:
                     cluster_pairs.append(new_cluster_pair)
                     paired_fwd_clusters_indices.append(fwd_index)

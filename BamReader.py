@@ -3,7 +3,7 @@ import pybedtools
 import sys
 import numpy
 from AlignedReadPair import *
-
+from itertools import tee
 
 class BamReader:
 
@@ -17,9 +17,9 @@ class BamReader:
 
     def calculate_mean_sdev_isize(self, num_itr):
         """calculate the mean insert size and std dev for num_itr first reads in the bam file"""
-        bam_file = pysam.Samfile(self.bam_file_name, "rb")
+        bam_file = pysam.AlignmentFile(self.bam_file_name, "rb")
         # itr = bam_file.fetch(bam_file.references[0], start=50000)
-        print "blah"
+        # print "blah"
         # print itr.tell()
         counter  = 0
         isize_array = []
@@ -41,8 +41,8 @@ class BamReader:
         return(mean, sdev, rlen_mean, rlen_sdev)
 
     def output_repetitive_reads(self):
-        bam_file = pysam.Samfile(self.bam_file_name, "rb")
-        output_bam_file = pysam.Samfile(self.prefix + ".repetitive.bam", mode="wb", referencenames=bam_file.references, referencelengths=bam_file.lengths)
+        bam_file = pysam.AlignmentFile(self.bam_file_name, "rb")
+        output_bam_file = pysam.AlignmentFile(self.prefix + ".repetitive.bam", mode="wb", referencenames=bam_file.references, referencelengths=bam_file.lengths)
 
         read = bam_file.next()
         while 1:
@@ -58,8 +58,8 @@ class BamReader:
         output_bam_file.close()
 
     def output_one_chr_reads(self):
-        bam_file = pysam.Samfile(self.bam_file_name, "rb")
-        output_bam_file = pysam.Samfile(self.prefix + ".chr1_chr2.bam", mode="wb", referencenames=bam_file.references, referencelengths=bam_file.lengths)
+        bam_file = pysam.AlignmentFile(self.bam_file_name, "rb")
+        output_bam_file = pysam.AlignmentFile(self.prefix + ".chr1_chr2.bam", mode="wb", referencenames=bam_file.references, referencelengths=bam_file.lengths)
         read1 = bam_file.next()
 
         read_pairs_dict = {}
@@ -104,7 +104,7 @@ class BamReader:
        # print "selecting discordant reads that overlap with a TE in annotation " + TE_annot + " ..."
 
         #use pysam to open the bam file because it has better object definition for the reads
-        valid_discordant_bam = pysam.Samfile(self.bam_file_name, "rb")
+        valid_discordant_bam = pysam.AlignmentFile(self.bam_file_name, "rb")
 
         #file to save the discordant read pairs where exactly one read overlaps a TE annotation
         #overlap_TE_bam_file = pysam.Samfile(self.prefix + ".one_read_overlap_TE.bam", mode="wb", referencenames=valid_discordant_bam.references, referencelengths=valid_discordant_bam.lengths)
@@ -117,16 +117,9 @@ class BamReader:
         read_pairs_xor_overlap_TE = []
 
 
-        try:
-        	read1 = valid_discordant_bam.next()
-        	read2 = valid_discordant_bam.next()
-        except StopIteration:
-            print "ERROR: no reads are found in %s, exiting" % (bam_file_name)
-            sys.exit(2)
 
 
-
-        while 1 :
+        for read1, read2 in pairwise(valid_discordant_bam):
             #if verbose:
             #    print read1
             #    print read2
@@ -135,13 +128,9 @@ class BamReader:
             #if not, scoot down one in the iteration
 
             if read1.qname != read2.qname:
-                print "unmatched pair in valid discordant reads. Problem!!"
+                # print( "unmatched pair in valid discordant reads. Problem!!")
                 #sys.exit(2)
-                read1 = read2
-                try:
-                    read2 = valid_discordant_bam.next()
-                except StopIteration:
-                    break
+                
                 continue
 
             read_pair = AlignedReadPair(read1, read2)
@@ -218,14 +207,9 @@ class BamReader:
                     read_pairs_xor_overlap_TE.append(read_pair)
 
 
-            #shift to next pair
-            try:
-                read1 = valid_discordant_bam.next()
-                read2 = valid_discordant_bam.next()
-            except StopIteration:
-                break
+            
 
-        print "number discordant read pairs with exactly one read overlapping a TE: %d" % len(read_pairs_xor_overlap_TE)
+        print( "number discordant read pairs with exactly one read overlapping a TE: %d" % len(read_pairs_xor_overlap_TE))
         #print "\n".join(pair.str() for pair in read_pairs_xor_overlap_TE)
         #overlap_TE_bam_file.close()
 
@@ -253,7 +237,7 @@ class BamReader:
        # print "selecting discordant reads..."
 
         #open file in r (read) b (bam) mode
-        bam_file = pysam.Samfile(self.bam_file_name, "rb")
+        bam_file = pysam.AlignmentFile(self.bam_file_name, "rb")
 
 
         #file to save the softclipped reads that are NOT multiple maps for both sides
@@ -261,7 +245,7 @@ class BamReader:
         #proper_pair_bam_file = pysam.Samfile(self.prefix + ".proper_pair.bam", mode="wb", referencenames=bam_file.references, referencelengths=bam_file.lengths)
 
         #file to save the valid discordant pairs: with at least one uniquely mapping read and all insert sizes are greater than expected.
-        valid_discordant_pairs = pysam.Samfile(outfile_name, mode="wb", referencenames=bam_file.references, referencelengths=bam_file.lengths)
+        valid_discordant_pairs = pysam.AlignmentFile(outfile_name, mode="wb", referencenames=bam_file.references, referencelengths=bam_file.lengths)
 
 
         #keep track of what kind of reads were found
@@ -284,17 +268,17 @@ class BamReader:
         #    counter += 1
         while 1 :
             if verbose:
-                print "next pair"
+                print( "next pair")
 
             if verbose:
-                print read1
-                print read2
+                print(read1)
+                print(read2)
             #check that the reads are truly a pair:
             #if not, scoot down one in the iteration
 
             if read1.qname != read2.qname:
                 if verbose:
-                    print "unmatched pair! "
+                    print("unmatched pair! ")
                 single_read_count += 1
                # if is_softclipped(read1):
                    # soft_clipped_bam_file.write(read1)
@@ -308,7 +292,7 @@ class BamReader:
             #do not keep pair if it is properly mapped but save it if either read is softclipped
             if read1.is_proper_pair:
                 if verbose:
-                    print "proper pair!"
+                    print("proper pair!")
                 proper_pair_count +=1
                # if is_softclipped(read1) or is_softclipped(read2):
                #     soft_clipped_bam_file.write(read1)
@@ -329,7 +313,7 @@ class BamReader:
 
             if read1.is_unmapped or read2.is_unmapped:
                 if verbose:
-                    print "unmapped!"
+                    print("unmapped!")
                 unmapped_pair_count += 1
                 try:
                     read1 = bam_file.next()
@@ -354,7 +338,7 @@ class BamReader:
             # isize is 0 when mapped to a different chromosome, so want to keep those
             if 0 < read1.isize < abs(isize):
                 if verbose:
-                    print "invalid discordant, insert size too small! isize = %d" % read1.isize
+                    print("invalid discordant, insert size too small! isize = %d" % read1.isize)
                 discordant_pair_too_small_isize += 1
                # if is_softclipped(read1) or is_softclipped(read2):
                #     soft_clipped_bam_file.write(read1)
@@ -373,7 +357,7 @@ class BamReader:
 
             if is_mapped_mult_times(read1) and is_mapped_mult_times(read2):
                 if verbose:
-                    print "invalid discordant, both reads repetitively map!"
+                    print("invalid discordant, both reads repetitively map!")
                 multiple_map_pair_count += 1
                # if is_softclipped(read1) or is_softclipped(read2):
                #     soft_clipped_bam_file.write(read1)
@@ -389,7 +373,7 @@ class BamReader:
             if strict_repetitive:
                 if is_mapped_mult_times(read1) or is_mapped_mult_times(read2):
                     if verbose:
-                        print "discordant and exactly one read repetitive! map distance = %d" % read1.isize
+                        print("discordant and exactly one read repetitive! map distance = %d" % read1.isize)
                     valid_discordant_pair_count_strict += 1
                     valid_discordant_pairs_strict.write(read1)
                     valid_discordant_pairs_strict.write(read2)
@@ -404,7 +388,7 @@ class BamReader:
                         break
                 else:
                     if verbose:
-                        print "discordant and both reads map uniquely! map distance = %d" % read1.isize
+                        print("discordant and both reads map uniquely! map distance = %d" % read1.isize)
                     valid_discordant_pair_count += 1
                     valid_discordant_pairs.write(read1)
                     valid_discordant_pairs.write(read2)
@@ -422,7 +406,7 @@ class BamReader:
             #otherwise, output to same file whether both unique or one unique
             else:
                 if verbose:
-                    print "discordant! map distance = %d" % read1.isize
+                    print("discordant! map distance = %d" % read1.isize)
                 valid_discordant_pair_count += 1
                 valid_discordant_pairs.write(read1)
                 valid_discordant_pairs.write(read2)
@@ -477,7 +461,7 @@ class BamReader:
        # print "selecting discordant reads..."
 
         #open file in r (read) b (bam) mode
-        bam_file = pysam.Samfile(self.bam_file_name, "rb")
+        bam_file = pysam.AlignmentFile(self.bam_file_name, "rb")
 
 
         #file to save the softclipped reads that are NOT multiple maps for both sides
@@ -485,7 +469,7 @@ class BamReader:
         #proper_pair_bam_file = pysam.Samfile(self.prefix + ".proper_pair.bam", mode="wb", referencenames=bam_file.references, referencelengths=bam_file.lengths)
 
         #file to save the valid discordant pairs: with at least one uniquely mapping read and all insert sizes are greater than expected.
-        valid_discordant_pairs = pysam.Samfile(outfile_name, mode="wb", referencenames=bam_file.references, referencelengths=bam_file.lengths)
+        valid_discordant_pairs = pysam.AlignmentFile(outfile_name, mode="wb", referencenames=bam_file.references, referencelengths=bam_file.lengths)
 
         read_names_set = set([])
         read_pairs_dict = {}
@@ -502,7 +486,7 @@ class BamReader:
 
         #total_reads = bam_file.mapped + bam_file.unmapped
 
-        read1 = bam_file.next()
+        # read1 = bam_file.next()
         
 
         #for testing restrict while loop to counter
@@ -510,39 +494,32 @@ class BamReader:
         # print "TESTING!! only first 100000 reads analyzed! "
         # while counter < 1000:
         #     counter += 1
-        while 1 :
+        for read1 in bam_file.fetch(until_eof=True) :
 
             total_reads_count += 1
             # print read1.qname
 
             if verbose:
-                print "next pair"
+                print("next pair")
 
             if verbose:
-                print read1
+                print(read1)
 
             
 
             #do not keep if it is properly mapped 
             if read1.is_proper_pair:
                 if verbose:
-                    print "proper pair!"
+                    print("proper pair!")
                 proper_pair_count +=1
-                try:
-                    read1 = bam_file.next()
-                except StopIteration:
-                    break
                 continue
 
 
             if read1.is_unmapped:
                 if verbose:
-                    print "unmapped!"
+                    print("unmapped!")
                 unmapped_pair_count += 1
-                try:
-                    read1 = bam_file.next()
-                except StopIteration:
-                    break
+                
                 continue
 
 
@@ -550,19 +527,16 @@ class BamReader:
             # isize is 0 when mapped to a different chromosome, so want to keep those
             if 0 < read1.isize < abs(isize):
                 if verbose:
-                    print "invalid discordant, insert size too small! isize = %d" % read1.isize
+                    print("invalid discordant, insert size too small! isize = %d" % read1.isize)
                 discordant_pair_too_small_isize += 1
-                try:
-                    read1 = bam_file.next()
-                except StopIteration:
-                    break
+                
                 continue
 
 
 
             
             if verbose:
-                print "discordant! map distance = %d" % read1.isize
+                print("discordant! map distance = %d" % read1.isize)
             valid_discordant_pair_count += 1
 
             # if this read is mate of one that was already selected, write it
@@ -584,10 +558,7 @@ class BamReader:
             
 
 
-            try:
-                read1 = bam_file.next()
-            except StopIteration:
-                break
+        
 
         bam_stats = {}
         bam_stats["single_read_count"] = single_read_count
@@ -607,7 +578,7 @@ class BamReader:
         valid_discordant_pairs.close()
 
 
-        print "done selecting discordant reads."
+        print("done selecting discordant reads.")
         lengths = bam_file.lengths
         refs = bam_file.references
         bam_file.close()
@@ -672,6 +643,12 @@ def get_all_mapping_pos(read, bam_file_obj):
         return positions_list
     #print len(positions_list)
     return positions_list
+
+def pairwise(iterable):
+    "s -> (s0,s1), (s1,s2), (s2, s3), ..."
+    a, b = tee(iterable)
+    next(b, None)
+    return zip(a, b)
 
 
 

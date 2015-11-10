@@ -8,9 +8,9 @@ class AlignedReadPair:
     def __init__(self, read1, read2):
         """takes two pysam AlignedRead objects"""
         if read1.qname != read2.qname:
-            print "error making aligned read pair: read names not the same"
-            print read1
-            print read2
+            print("error making aligned read pair: read names not the same")
+            print(read1)
+            print(read2)
             sys.exit(2)
 
         #self.read1 = read1
@@ -53,7 +53,7 @@ class AlignedReadPair:
                 self.interval_end = int(read2.aend) + size
                 self.interval_direction = "fwd"
         else:
-            print "error in read pair object - neither read is a TE"
+            print("error in read pair object - neither read is a TE")
 
 
     def calculate_outside_interval(self, size, read1, read2):
@@ -82,7 +82,7 @@ class AlignedReadPair:
                 self.interval_end = int(read2.pos) + size
                 self.interval_direction = "fwd"
         else:
-            print "error in read pair object - neither read is a TE"
+            print("error in read pair object - neither read is a TE")
             sys.exit(2)
 
     def str(self):
