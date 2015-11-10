@@ -16,7 +16,7 @@ import shlex
 from memory_profiler import profile
 
 
-@profile
+# @profile
 def run_jitterbug_streaming(psorted_bamfile_name, verbose, te_annot, \
     te_seqs, library_name, num_sdev, output_prefix, TE_name_tag, parallel, num_CPUs, bin_size, min_mapq, generate_test_bam, print_extra_output, conf_lib_stats, mem, min_cluster_size):
 
