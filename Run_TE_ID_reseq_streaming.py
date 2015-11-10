@@ -11,6 +11,7 @@ import datetime
 import subprocess
 from pysam import csamtools
 import os
+import shlex
 
 from memory_profiler import profile
 
@@ -19,8 +20,6 @@ from memory_profiler import profile
 def run_jitterbug_streaming(psorted_bamfile_name, verbose, te_annot, \
     te_seqs, library_name, num_sdev, output_prefix, TE_name_tag, parallel, num_CPUs, bin_size, min_mapq, generate_test_bam, print_extra_output, conf_lib_stats, mem, min_cluster_size):
 
-    # print te_annot
-    # print min_mapq
 
     
 
@@ -34,7 +33,7 @@ def run_jitterbug_streaming(psorted_bamfile_name, verbose, te_annot, \
 
 
     bamFileName, bamFileExtension = os.path.splitext(psorted_bamfile_name)
-    filtered_bam_file_name = output_prefix + ".input_bam.filtered.bam"
+    filtered_bam_file_name = output_prefix + ".input_bam.filtered.sam"
 
     print "filtering reads in %s and writing to %s" % (psorted_bamfile_name, filtered_bam_file_name)
 
@@ -61,33 +60,39 @@ def run_jitterbug_streaming(psorted_bamfile_name, verbose, te_annot, \
 
 
     # construct list of args 
-    if not mem: 
-        args = ["samtools", "view", "-h" , "-F", "3854", "-o", filtered_bam_file_name, psorted_bamfile_name]
-    else:
-        args = ["samtools", "view", "-h", "-F", "1550", "-o", filtered_bam_file_name, psorted_bamfile_name]
 
-    print args
+
+    if not mem: 
+        # args = ["samtools", "view", "-h" , "-F", "3854", "-o" , filtered_bam_file_name , psorted_bamfile_name ]
+        args1 = ["samtools", "view", "-h" , "-F", "3854", psorted_bamfile_name]
+        #print args1
+
+        args2 = ["awk" , r'{ if ($9 <= (-500) || $9>=500 || $9==0 ) { print $0 } }'] 
+        #print args2
+
+    else:
+        args1 = ["samtools", "view", "-h" , "-F", "1550", psorted_bamfile_name]
+        #print args1
+
+        args2 = ["awk" , r'{ if ($9 <= (-1000) || $9>=1000 || $9==0 ) { print $0 } }'] 
+        #print args2
+
     # open subprocess 
     try:
-        disc_pair_filt = subprocess.Popen(args)
+        outfile = open(filtered_bam_file_name, "w")
+        p1 = subprocess.Popen(args1, stdout=subprocess.PIPE)
+        p2 = subprocess.Popen(args2, stdin=p1.stdout, stdout=outfile)
+        p1.stdout.close()
+        output = p2.communicate()[0]
+
+        # p = subprocess.Popen(args)
+        # p.wait()
+
     except Exception, e:
-        print "error using --streaming: is samtools not installed or in your PATH?"
+        print "error using --pre_filter: is samtools not installed or in your PATH? do you have the awk utility?"
+        print e
         sys.exit(1)
     
-    # wait till it finishes
-    outcode = disc_pair_filt.wait()
-
-    if outcode  == 0:
-        print "filtering successful"
-    else:
-        command = "\t".join(args)
-        print "filtering failed! command: %s " % (command)
-        sys.exit(1)
-
-
-
-
-
 
 
 
@@ -173,13 +178,6 @@ def run_jitterbug_streaming(psorted_bamfile_name, verbose, te_annot, \
     print "elapsed time: " + str(time - start_time)
 
 
-#        print "sorting proper pair bam file in the background... "
-#        args = ["samtools", "sort", output_prefix + ".proper_pair.bam", output_prefix + ".proper_pair.sorted"]
-# #        proper_pair_sort = subprocess.Popen(args)
-#     else:
-#         print "using already selected discordant reads in %s" % (valid_discordant_reads_file_name)
-
-
 
     ################### Select valid discordant reads that match a TE #####################
     # Of the valid discordant read pairs, select those that have exactly one side that
@@ -245,7 +243,7 @@ def run_jitterbug_streaming(psorted_bamfile_name, verbose, te_annot, \
 
     ###############
     # for mem debug
-    return 0
+    # return 0
     ###############
 
 
@@ -311,38 +309,28 @@ def run_jitterbug_streaming(psorted_bamfile_name, verbose, te_annot, \
     pair_table_output_file = open(output_prefix + ".TE_insertions_paired_clusters.supporting_clusters.table", "w")
     pair_table_output_file.write(table_header(library_name, library_name, te_annot))
 
-    if print_extra_output: 
-        single_gff_output_file = open(output_prefix + ".TE_insertions_single_cluster.gff3", "w")
-        single_table_output_file = open(output_prefix + ".TE_insertions_single_cluster.supporting_clusters.table", "w")
-        single_table_output_file.write(table_header(library_name, library_name, te_annot))
+    # if print_extra_output: 
+    #     single_gff_output_file = open(output_prefix + ".TE_insertions_single_cluster.gff3", "w")
+    #     single_table_output_file = open(output_prefix + ".TE_insertions_single_cluster.supporting_clusters.table", "w")
+    #     single_table_output_file.write(table_header(library_name, library_name, te_annot))
 
     print len(all_clusters)
 
     cluster_ID = 0
     for (cluster_pairs, unpaired_fwd_clusters, unpaired_rev_clusters, strings) in all_clusters:
-#        print len(cluster_pairs)
-#        print len(unpaired_fwd_clusters)
-#        print len(unpaired_rev_clusters)
 
-#        if cluster_pairs != []:
-#            write_cluster_pairs_reads_to_bam(clustered_reads_bam_file, cluster_pairs)
-#
-#        print "OK"
-#        if unpaired_fwd_clusters != [] or unpaired_rev_clusters != []:
-#            write_single_clusters_to_bam(clustered_reads_bam_file, unpaired_fwd_clusters, unpaired_rev_clusters)
-#
+        # comment this out b/c unpaired clusters are no longer reported
+        # if print_extra_output:
+        #     for fwd_cluster in unpaired_fwd_clusters:
+        #         single_gff_output_file.write(fwd_cluster.to_gff(cluster_ID, library_name, TE_name_tag) + "\n")
+        #         single_table_output_file.write(fwd_cluster.to_table(cluster_ID, library_name))
 
-        if print_extra_output:
-            for fwd_cluster in unpaired_fwd_clusters:
-                single_gff_output_file.write(fwd_cluster.to_gff(cluster_ID, library_name, TE_name_tag) + "\n")
-                single_table_output_file.write(fwd_cluster.to_table(cluster_ID, library_name))
+        #         cluster_ID += 1
 
-                cluster_ID += 1
-
-            for rev_cluster in unpaired_rev_clusters:
-                single_gff_output_file.write(rev_cluster.to_gff(cluster_ID, library_name, TE_name_tag) + "\n")
-                single_table_output_file.write(rev_cluster.to_table(cluster_ID, library_name))
-                cluster_ID += 1
+        #     for rev_cluster in unpaired_rev_clusters:
+        #         single_gff_output_file.write(rev_cluster.to_gff(cluster_ID, library_name, TE_name_tag) + "\n")
+        #         single_table_output_file.write(rev_cluster.to_table(cluster_ID, library_name))
+        #         cluster_ID += 1
 
         #print cluster_ID
         for cluster_pair in cluster_pairs:
@@ -357,9 +345,9 @@ def run_jitterbug_streaming(psorted_bamfile_name, verbose, te_annot, \
     pair_gff_output_file.close()
     pair_table_output_file.close()
 
-    if print_extra_output:
-        single_gff_output_file.close()
-        single_table_output_file.close()
+    # if print_extra_output:
+    #     single_gff_output_file.close()
+    #     single_table_output_file.close()
 
     
     end_time = str(datetime.datetime.now())

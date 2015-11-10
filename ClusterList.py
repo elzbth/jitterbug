@@ -92,11 +92,11 @@ class ClusterList:
 
         pool = Pool(num_CPUs, maxtasksperchild=1)
 
-        dummy_arg_list = [("string1", "string2")] * len(input_arg_list)
+        # dummy_arg_list = [("string1", "string2")] * len(input_arg_list)
 
-        all_clusters_by_bin = pool.imap(dummy_func, dummy_arg_list)
+        # all_clusters_by_bin = pool.imap(dummy_func, input_arg_list)
 
-        #all_clusters_by_bin = pool.imap(pair_clusters_by_bin, input_arg_list)
+        all_clusters_by_bin = pool.imap(pair_clusters_by_bin, input_arg_list)
 
         pool.close()
         pool.join()
@@ -199,15 +199,15 @@ class ClusterList:
                         paired_rev_clusters_indices.append(rev_index)
 
         #make lists of unpaired clusters
-        unpaired_fwd_clusters = []
-        unpaired_rev_clusters = []
-        for fwd_index in range(len(non_overlapping_fwd_clusters)):
-            if fwd_index not in paired_fwd_clusters_indices:
-                unpaired_fwd_clusters.append(non_overlapping_fwd_clusters[fwd_index])
+        # unpaired_fwd_clusters = []
+        # unpaired_rev_clusters = []
+        # for fwd_index in range(len(non_overlapping_fwd_clusters)):
+        #     if fwd_index not in paired_fwd_clusters_indices:
+        #         unpaired_fwd_clusters.append(non_overlapping_fwd_clusters[fwd_index])
 
-        for rev_index in range(len(non_overlapping_rev_clusters)):
-            if rev_index not in paired_rev_clusters_indices:
-                unpaired_rev_clusters.append(non_overlapping_rev_clusters[rev_index])
+        # for rev_index in range(len(non_overlapping_rev_clusters)):
+        #     if rev_index not in paired_rev_clusters_indices:
+        #         unpaired_rev_clusters.append(non_overlapping_rev_clusters[rev_index])
 
 
 
@@ -224,13 +224,13 @@ class ClusterList:
                 print " ".join(read.str_int() for read in rev_cluster)
                 print " ".join(read.str_TE_annot_list() for read in rev_cluster)
 
-        return (cluster_pairs, unpaired_fwd_clusters, unpaired_rev_clusters, bed_string)
+        return (cluster_pairs, None, None, bed_string)
 
 
 ############################### END NON PARALLEL VERSION ########################################################
 
-def dummy_func((string1, string2)):
-    pass
+def dummy_func((key, fwd_clusters, rev_clusters, bam_file_name, verbose, bed_file_handle, streaming, min_cluster_size)):
+    return fwd_clusters, rev_clusters
 
 
 
@@ -284,22 +284,26 @@ def pair_clusters_by_bin((key, fwd_clusters, rev_clusters, bam_file_name, verbos
                     paired_rev_clusters_indices.append(rev_index)
 
     #make lists of unpaired clusters
-    unpaired_fwd_clusters = []
-    unpaired_rev_clusters = []
-    for fwd_index in range(len(non_overlapping_fwd_clusters)):
-        if fwd_index not in paired_fwd_clusters_indices:
-            unpaired_fwd_clusters.append(non_overlapping_fwd_clusters[fwd_index])
+    # unpaired_fwd_clusters = []
+    # unpaired_rev_clusters = []
+    # for fwd_index in range(len(non_overlapping_fwd_clusters)):
+    #     if fwd_index not in paired_fwd_clusters_indices:
+    #         unpaired_fwd_clusters.append(non_overlapping_fwd_clusters[fwd_index])
 
-    for rev_index in range(len(non_overlapping_rev_clusters)):
-        if rev_index not in paired_rev_clusters_indices:
-            unpaired_rev_clusters.append(non_overlapping_rev_clusters[rev_index])
+    # for rev_index in range(len(non_overlapping_rev_clusters)):
+    #     if rev_index not in paired_rev_clusters_indices:
+    #         unpaired_rev_clusters.append(non_overlapping_rev_clusters[rev_index])
+
+
+    # if streaming:
+    #     return (cluster_pairs, unpaired_fwd_clusters, unpaired_rev_clusters, bed_string)
+    # else:
+    #     return (cluster_pairs, unpaired_fwd_clusters, unpaired_rev_clusters)
 
     if streaming:
-        return (cluster_pairs, unpaired_fwd_clusters, unpaired_rev_clusters, bed_string)
+        return (cluster_pairs, None, None, bed_string)
     else:
-        return (cluster_pairs, unpaired_fwd_clusters, unpaired_rev_clusters)
-
-
+        return (cluster_pairs, None, None)
 
 
 

@@ -25,7 +25,7 @@ def reportResource(point=""):
                 (usage[2]*resource.getpagesize())/1000000.0 )
 
 
-# @profile 
+@profile 
 def run_jitterbug(psorted_bamfile_name, already_calc_discordant_reads, valid_discordant_reads_file_name, verbose, te_annot, \
     te_seqs, library_name, num_sdev, output_prefix, TE_name_tag, parallel, num_CPUs, bin_size, min_mapq, generate_test_bam, print_extra_output, conf_lib_stats, mem, min_cluster_size):
 
@@ -234,55 +234,33 @@ def run_jitterbug(psorted_bamfile_name, already_calc_discordant_reads, valid_dis
 
     print "writing clustered reads to bam file, writing to gff and tables... "
 
-#    pickle_file = open(output_prefix + ".clusters_pairs.pickle", "w")
-#    pickle.dump(cluster_pairs, pickle_file)
-#    pickle_file.close()
-
-    #output_prefix_clusters = "%s.d%d" % (output_prefix, num_sdev)
-
-    ##### this was to wrote final clustered reads to a separate bam file. 
-    #input_bam = pysam.Samfile(psorted_bamfile_name, mode="rb")
-    
-
-    #clustered_reads_bam_file = pysam.Samfile(output_prefix + ".final_clustered_reads.bam", mode="wb", referencenames=input_bam.references, referencelengths=input_bam.lengths)
-
-    #input_bam.close()
 
     pair_gff_output_file = open(output_prefix + ".TE_insertions_paired_clusters.gff3", "w")
     pair_table_output_file = open(output_prefix + ".TE_insertions_paired_clusters.supporting_clusters.table", "w")
     pair_table_output_file.write(table_header(library_name, library_name, te_annot))
 
-    if print_extra_output: 
-        single_gff_output_file = open(output_prefix + ".TE_insertions_single_cluster.gff3", "w")
-        single_table_output_file = open(output_prefix + ".TE_insertions_single_cluster.supporting_clusters.table", "w")
-        single_table_output_file.write(table_header(library_name, library_name, te_annot))
+    # if print_extra_output: 
+    #     single_gff_output_file = open(output_prefix + ".TE_insertions_single_cluster.gff3", "w")
+    #     single_table_output_file = open(output_prefix + ".TE_insertions_single_cluster.supporting_clusters.table", "w")
+    #     single_table_output_file.write(table_header(library_name, library_name, te_annot))
 
     print len(all_clusters)
     cluster_ID = 0
     for (cluster_pairs, unpaired_fwd_clusters, unpaired_rev_clusters) in all_clusters:
-#        print len(cluster_pairs)
-#        print len(unpaired_fwd_clusters)
-#        print len(unpaired_rev_clusters)
 
-#        if cluster_pairs != []:
-#            write_cluster_pairs_reads_to_bam(clustered_reads_bam_file, cluster_pairs)
-#
-#        print "OK"
-#        if unpaired_fwd_clusters != [] or unpaired_rev_clusters != []:
-#            write_single_clusters_to_bam(clustered_reads_bam_file, unpaired_fwd_clusters, unpaired_rev_clusters)
-#
 
-        if print_extra_output:
-            for fwd_cluster in unpaired_fwd_clusters:
-                single_gff_output_file.write(fwd_cluster.to_gff(cluster_ID, library_name, TE_name_tag) + "\n")
-                single_table_output_file.write(fwd_cluster.to_table(cluster_ID, library_name))
+        # unpaired clusters are no longer reported
+        # if print_extra_output:
+        #     for fwd_cluster in unpaired_fwd_clusters:
+        #         single_gff_output_file.write(fwd_cluster.to_gff(cluster_ID, library_name, TE_name_tag) + "\n")
+        #         single_table_output_file.write(fwd_cluster.to_table(cluster_ID, library_name))
 
-                cluster_ID += 1
+        #         cluster_ID += 1
 
-            for rev_cluster in unpaired_rev_clusters:
-                single_gff_output_file.write(rev_cluster.to_gff(cluster_ID, library_name, TE_name_tag) + "\n")
-                single_table_output_file.write(rev_cluster.to_table(cluster_ID, library_name))
-                cluster_ID += 1
+        #     for rev_cluster in unpaired_rev_clusters:
+        #         single_gff_output_file.write(rev_cluster.to_gff(cluster_ID, library_name, TE_name_tag) + "\n")
+        #         single_table_output_file.write(rev_cluster.to_table(cluster_ID, library_name))
+        #         cluster_ID += 1
 
         #print cluster_ID
         for cluster_pair in cluster_pairs:
@@ -297,9 +275,9 @@ def run_jitterbug(psorted_bamfile_name, already_calc_discordant_reads, valid_dis
     pair_gff_output_file.close()
     pair_table_output_file.close()
 
-    if print_extra_output:
-        single_gff_output_file.close()
-        single_table_output_file.close()
+    # if print_extra_output:
+    #     single_gff_output_file.close()
+    #     single_table_output_file.close()
 
     
     end_time = str(datetime.datetime.now())
