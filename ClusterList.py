@@ -5,12 +5,14 @@ from ClusterPair import *
 # from pp import *
 import pysam
 #from pysam import csamtools
+import gc
+#from memory_profiler import profile
 
 from multiprocessing import Pool
 
 
 class ClusterList:
-
+    ##@profile
     def __init__(self, read_pair_list):
         #list of AlignedReadPair objects
         self.read_pair_list = read_pair_list
@@ -23,10 +25,26 @@ class ClusterList:
 
 
     #cluster the read pairs according to the interval defined by the non-TE mapped read
+    #@profile
     def generate_clusters_parallel(self, verbose, num_CPUs, bin_size, psorted_bamfile_name, bed_file_handle, streaming, min_cluster_size):
 
+###################### BEGIN PARALLEL VERSION ########################################
+
+        ################ CLUSTER BY CHR #######################
+        #cluster fwd intervals
+#        fwd_read_pairs = [read_pair for read_pair in self.read_pair_list if read_pair.interval_direction == "fwd"]
+#        fwd_clusters_by_chr = cluster_read_pairs_by_chr(fwd_read_pairs)
+#        print "********************* total fwd non-overlapping clusters found by chr: %d" % sum([len(chr_list) for chr_list in fwd_clusters_by_chr.values()])
+#
+#
+#
+#        #cluster rev intervals
+#        rev_read_pairs = [read_pair for read_pair in self.read_pair_list if read_pair.interval_direction == "rev"]
+#        rev_clusters_by_chr = cluster_read_pairs_by_chr(rev_read_pairs)
+#        print "********************* total rev non-overlapping clusters found by chr: %d" % sum([len(chr_list) for chr_list in rev_clusters_by_chr.values()])
 
 
+        ############################ END CLUSTER BY CHR ###########################
 
         ################ CLUSTER BY BIN #######################
         #cluster fwd intervals
@@ -34,19 +52,30 @@ class ClusterList:
         fwd_clusters_by_bin = cluster_read_pairs_by_chr_and_bin(fwd_read_pairs, bin_size)
         print "********************* total fwd non-overlapping clusters found by bin: %d" % sum([len(chr_list) for chr_list in fwd_clusters_by_bin.values()])
 
-
+        ####DEBUG
+        print "size of fwd_read_pairs list %s"%(sys.getsizeof(fwd_read_pairs))
+        del(fwd_read_pairs)
+        gc.collect()
 
         #cluster rev intervals
         rev_read_pairs = [read_pair for read_pair in self.read_pair_list if read_pair.interval_direction == "rev"]
         rev_clusters_by_bin = cluster_read_pairs_by_chr_and_bin(rev_read_pairs, bin_size)
         print "********************* total rev non-overlapping clusters found by bin: %d" % sum([len(chr_list) for chr_list in rev_clusters_by_bin.values()])
-
-
+        
+        ###DEBUG
+        print "size of rev_read_pairs list %s"%(sys.getsizeof(rev_read_pairs))
+        print "size of read pair list initial %s"%(sys.getsizeof(self.read_pair_list))
+        del(rev_read_pairs)
+        del(self.read_pair_list)
+        gc.collect()
+        
         ############################ END CLUSTER BY BIN ###########################
 
 
-
-
+        print "Debug : len FWD = %d"%(len(fwd_clusters_by_bin))
+        print "Debug : len REV = %d"%(len(rev_clusters_by_bin))
+        print "size of fwd list %s"%(sys.getsizeof(fwd_clusters_by_bin))
+        print "size of rev list %s"%(sys.getsizeof(rev_clusters_by_bin))
 
 
         ##########TODO THIS IS DEBUG
@@ -86,24 +115,31 @@ class ClusterList:
                 input_arg_list.append((key, fwd_clusters_by_bin[key], rev_clusters_by_bin[key], psorted_bamfile_name, verbose, bed_file_handle, streaming, min_cluster_size))
 
         #print input_arg_list[0][0][0].readpair_list[0].read1
+        ###DEBUG
+        del(fwd_clusters_by_bin)
+        del(rev_clusters_by_bin)
+        gc.collect()
+
 
         print "sending %d jobs to %d processes" % (len(input_arg_list), num_CPUs)
+        print "#DEBUG : "
+        print "size of input_arg_list %s"%(sys.getsizeof(input_arg_list))
+
+        #
+        #pool = Pool(num_CPUs)
+        #
+        #all_clusters_by_bin = pool.map(pair_clusters_by_bin, input_arg_list)
+        #
+        #pool.close()
+        #pool.join()
+        #####FOR PROFILING######
+        all_clusters_by_bin = list()    
+        for i in input_arg_list:
+            tmp = pair_clusters_by_bin(i)
+            all_clusters_by_bin.append(tmp)
+            #break
 
 
-        pool = Pool(num_CPUs, maxtasksperchild=1)
-
-        # dummy_arg_list = [("string1", "string2")] * len(input_arg_list)
-
-        # all_clusters_by_bin = pool.imap(dummy_func, input_arg_list)
-
-        all_clusters_by_bin = pool.map(pair_clusters_by_bin, input_arg_list)
-
-        pool.close()
-        pool.join()
-
-
-        #for mem debug
-        # return list(all_clusters_by_bin)
 
 
         ################ END NEW PARALLEL VERSION #################################
@@ -125,7 +161,7 @@ class ClusterList:
             bed_file_handle.write(bed_string)
             bed_file_handle.close()
 
-            
+            return all_clusters_by_bin
 
         else:
             cluster_counts = [(len(p), len(f), len(r)) for (p,f,r) in all_clusters_by_bin]
@@ -135,12 +171,12 @@ class ClusterList:
 
             
 
-        return all_clusters_by_bin
+            return all_clusters_by_bin
 
 
 ##################### END PARALLEL VERSION #############################################
 
-
+    ##@profile
     def generate_clusters(self, verbose, psorted_bamfile_name, bed_file_handle, streaming, min_cluster_size):
 ##################### BEGIN NON PARALLEL VERSION ######################################
         #cluster fwd intervals
@@ -148,7 +184,7 @@ class ClusterList:
         fwd_clusters = cluster_read_pairs_all(fwd_read_pairs)
 
         print "******************total fwd clusters found: %d" %  len(fwd_clusters)
-        non_overlapping_fwd_clusters = remove_overlapping_clusters(fwd_clusters)
+        non_overlapping_fwd_clusters = remove_overlapping_clusters(fwd_clusters,min_cluster_size)
         print "******************total fwd non-overlapping clusters found: %d" %  len(non_overlapping_fwd_clusters)
 
 
@@ -157,7 +193,7 @@ class ClusterList:
         rev_clusters = cluster_read_pairs_all(rev_read_pairs)
 
         print "******************total rev clusters found: %d" % len(rev_clusters)
-        non_overlapping_rev_clusters = remove_overlapping_clusters(rev_clusters)
+        non_overlapping_rev_clusters = remove_overlapping_clusters(rev_clusters,min_cluster_size)
         print "******************total rev non-overlapping clusters found: %d" %  len(non_overlapping_rev_clusters)
 
         #bam_file_name = output_prefix + ".proper_pair.sorted.bam"
@@ -169,20 +205,22 @@ class ClusterList:
         paired_fwd_clusters_indices = []
         paired_rev_clusters_indices = []
         bed_string = ""
-
+        
+        last_intersect=0
         # iterate over combinations of fwd and rev clusters, skipping if clusters dont meet min size requirements
-        for fwd_index, fwd_cluster in enumerate(non_overlapping_fwd_clusters):
-            if fwd_cluster.num_reads < min_cluster_size:
-                continue
-
-            for rev_index, rev_cluster in enumerate(non_overlapping_rev_clusters):
-                if rev_cluster.num_reads < min_cluster_size:
-                    continue
-
+        for fwd_index  in range(0,len(non_overlapping_fwd_clusters)):
+            #if fwd_cluster.num_reads < min_cluster_size:
+            #    continue
+            fwd_cluster=non_overlapping_fwd_clusters[fwd_index]
+            for rev_index in range(last_intersect, len(non_overlapping_rev_clusters)):
+                #if rev_cluster.num_reads < min_cluster_size:
+                #    continue
+                rev_cluster=non_overlapping_rev_clusters[rev_index]
                 if fwd_cluster.is_overlapping_strict(rev_cluster):
+                    last_intersect=rev_index
                     new_cluster_pair = ClusterPair(fwd_cluster, rev_cluster)
                     if not streaming:
-                        reads = psorted_bamfile.fetch(new_cluster_pair.get_chr(), new_cluster_pair.get_insertion_int_start(), new_cluster_pair.get_insertion_int_end())
+                        reads = proper_pair_bam.fetch(new_cluster_pair.get_chr(), new_cluster_pair.get_insertion_int_start(), new_cluster_pair.get_insertion_int_end())
                         new_cluster_pair.calc_zygosity(reads)
                     else:
                         bed_line = new_cluster_pair.to_bed()
@@ -197,17 +235,18 @@ class ClusterList:
                         cluster_pairs.append(new_cluster_pair)
                         paired_fwd_clusters_indices.append(fwd_index)
                         paired_rev_clusters_indices.append(rev_index)
-
+                elif  fwd_cluster.intersection_end < rev_cluster.intersection_start:
+                    break
         #make lists of unpaired clusters
-        # unpaired_fwd_clusters = []
-        # unpaired_rev_clusters = []
-        # for fwd_index in range(len(non_overlapping_fwd_clusters)):
-        #     if fwd_index not in paired_fwd_clusters_indices:
-        #         unpaired_fwd_clusters.append(non_overlapping_fwd_clusters[fwd_index])
+        unpaired_fwd_clusters = []
+        unpaired_rev_clusters = []
+        for fwd_index in range(len(non_overlapping_fwd_clusters)):
+            if fwd_index not in paired_fwd_clusters_indices:
+                unpaired_fwd_clusters.append(non_overlapping_fwd_clusters[fwd_index])
 
-        # for rev_index in range(len(non_overlapping_rev_clusters)):
-        #     if rev_index not in paired_rev_clusters_indices:
-        #         unpaired_rev_clusters.append(non_overlapping_rev_clusters[rev_index])
+        for rev_index in range(len(non_overlapping_rev_clusters)):
+            if rev_index not in paired_rev_clusters_indices:
+                unpaired_rev_clusters.append(non_overlapping_rev_clusters[rev_index])
 
 
 
@@ -224,26 +263,21 @@ class ClusterList:
                 print " ".join(read.str_int() for read in rev_cluster)
                 print " ".join(read.str_TE_annot_list() for read in rev_cluster)
 
-        return (cluster_pairs, [], [], bed_string)
+        return (cluster_pairs, unpaired_fwd_clusters, unpaired_rev_clusters, bed_string)
 
 
 ############################### END NON PARALLEL VERSION ########################################################
 
-def dummy_func((key, fwd_clusters, rev_clusters, bam_file_name, verbose, bed_file_handle, streaming, min_cluster_size)):
-    return fwd_clusters, rev_clusters
-
-
-
-
+#@profile
 def pair_clusters_by_bin((key, fwd_clusters, rev_clusters, bam_file_name, verbose, bed_file_handle, streaming, min_cluster_size)):
 
 
     print "processing cluster pairs on %s" % (key)
     #print "pairing clusters in parallel for chr %s" % fwd_clusters[0].chr
-    non_overlapping_fwd_clusters = remove_overlapping_clusters(fwd_clusters)
+    non_overlapping_fwd_clusters = remove_overlapping_clusters(fwd_clusters,min_cluster_size)
     if verbose:
         print "non overlapping fwd clusters\t%d" % (len(non_overlapping_fwd_clusters))
-    non_overlapping_rev_clusters = remove_overlapping_clusters(rev_clusters)
+    non_overlapping_rev_clusters = remove_overlapping_clusters(rev_clusters,min_cluster_size)
     if verbose:
         print "non overlapping rev clusters\t%d" % (len(non_overlapping_rev_clusters))
     if not streaming:
@@ -256,60 +290,61 @@ def pair_clusters_by_bin((key, fwd_clusters, rev_clusters, bam_file_name, verbos
     cluster_pairs = []
     paired_fwd_clusters_indices = []
     paired_rev_clusters_indices = []
+    last_intersect=0
     bed_string = ""
-    for fwd_index, fwd_cluster in enumerate(non_overlapping_fwd_clusters):
-        if fwd_cluster.num_reads < min_cluster_size:
-                continue
-
-        for rev_index, rev_cluster in enumerate(non_overlapping_rev_clusters):
-            if rev_cluster.num_reads < min_cluster_size:
-                    continue
-
-            if fwd_cluster.is_overlapping_strict(rev_cluster):
-                new_cluster_pair = ClusterPair(fwd_cluster, rev_cluster)
-                #print new_cluster_pair.get_chr()
-                if not streaming:
-                    reads = proper_pair_bam.fetch(new_cluster_pair.get_chr(), new_cluster_pair.get_insertion_int_start(), new_cluster_pair.get_insertion_int_end())
-                    new_cluster_pair.calc_zygosity(reads)
-                else:
-                    bed_line = new_cluster_pair.to_bed()
-                    bed_string = bed_string + "\n" + bed_line
-                #print "poop"
-                if new_cluster_pair.get_insertion_int_end() < new_cluster_pair.get_insertion_int_start():
-                    if True:
-                        print "cluster pair not paired!"
-                else:
-                    cluster_pairs.append(new_cluster_pair)
-                    paired_fwd_clusters_indices.append(fwd_index)
-                    paired_rev_clusters_indices.append(rev_index)
+    for fwd_index  in range(0,len(non_overlapping_fwd_clusters)):
+            #if fwd_cluster.num_reads < min_cluster_size:
+            #    continue
+            fwd_cluster=non_overlapping_fwd_clusters[fwd_index]
+            for rev_index in range(last_intersect, len(non_overlapping_rev_clusters)):
+                #if rev_cluster.num_reads < min_cluster_size:
+                #    continue
+                rev_cluster=non_overlapping_rev_clusters[rev_index]
+                if fwd_cluster.is_overlapping_strict(rev_cluster):
+                    new_cluster_pair = ClusterPair(fwd_cluster, rev_cluster)
+                    last_intersect=rev_index
+                    #print new_cluster_pair.get_chr()
+                    if not streaming:
+                        reads = proper_pair_bam.fetch(new_cluster_pair.get_chr(), new_cluster_pair.get_insertion_int_start(), new_cluster_pair.get_insertion_int_end())
+                        new_cluster_pair.calc_zygosity(reads)
+                    else:
+                        bed_line = new_cluster_pair.to_bed()
+                        bed_string = bed_string + "\n" + bed_line
+                    #print "poop"
+                    if new_cluster_pair.get_insertion_int_end() < new_cluster_pair.get_insertion_int_start():
+                        if True:
+                            print "cluster pair not paired!"
+                    else:
+                        cluster_pairs.append(new_cluster_pair)
+                        paired_fwd_clusters_indices.append(fwd_index)
+                        paired_rev_clusters_indices.append(rev_index)
+                elif  fwd_cluster.intersection_end < rev_cluster.intersection_start:
+                    break
 
     #make lists of unpaired clusters
-    # unpaired_fwd_clusters = []
-    # unpaired_rev_clusters = []
-    # for fwd_index in range(len(non_overlapping_fwd_clusters)):
-    #     if fwd_index not in paired_fwd_clusters_indices:
-    #         unpaired_fwd_clusters.append(non_overlapping_fwd_clusters[fwd_index])
+    unpaired_fwd_clusters = []
+    unpaired_rev_clusters = []
+    for fwd_index in range(len(non_overlapping_fwd_clusters)):
+        if fwd_index not in paired_fwd_clusters_indices:
+            unpaired_fwd_clusters.append(non_overlapping_fwd_clusters[fwd_index])
 
-    # for rev_index in range(len(non_overlapping_rev_clusters)):
-    #     if rev_index not in paired_rev_clusters_indices:
-    #         unpaired_rev_clusters.append(non_overlapping_rev_clusters[rev_index])
-
-
-    # if streaming:
-    #     return (cluster_pairs, unpaired_fwd_clusters, unpaired_rev_clusters, bed_string)
-    # else:
-    #     return (cluster_pairs, unpaired_fwd_clusters, unpaired_rev_clusters)
+    for rev_index in range(len(non_overlapping_rev_clusters)):
+        if rev_index not in paired_rev_clusters_indices:
+            unpaired_rev_clusters.append(non_overlapping_rev_clusters[rev_index])
 
     if streaming:
-        return (cluster_pairs, [], [], bed_string)
+        return (cluster_pairs, unpaired_fwd_clusters, unpaired_rev_clusters, bed_string)
     else:
-        return (cluster_pairs, [], [])
+        return (cluster_pairs, unpaired_fwd_clusters, unpaired_rev_clusters)
+
+
 
 
 
 
 
 #helper functions
+##@profile
 def cluster_read_pairs_by_chr(read_pair_list):
     """this generates a list of  maximal  clusters, ie sets of overlapping read pairs. note: these clusters can be themselves overlapping.
     returns a disctionary of lists of Cluster objects, one entry per chromosome"""
@@ -366,14 +401,10 @@ def cluster_read_pairs_by_chr(read_pair_list):
     return chr_cluster_lists
 
 
-
+#@profile
 def cluster_read_pairs_by_chr_and_bin(read_pair_list, bin_size):
     """this generates a list of  maximal  clusters, ie sets of overlapping read pairs. note: these clusters can be themselves overlapping.
     returns a disctionary of lists of Cluster objects, one entry per bin"""
-
-    # if no bin is set, cluster by chromosome
-    if bin_size == None:
-        return cluster_read_pairs_by_chr(read_pair_list)
 
     #sort according to end position then chromosome. sort is stable so the second sort will not unsort the positions
     read_pair_list.sort(key=lambda read_pair: read_pair.interval_end)
@@ -449,6 +480,7 @@ def cluster_read_pairs_by_chr_and_bin(read_pair_list, bin_size):
 
     return bin_cluster_lists
 
+#@profile
 def cluster_read_pairs_all(read_pair_list):
     """this generates a list of  maximal  clusters, ie sets of overlapping read pairs. note: these clusters can be themselves overlapping.
     returns a disctionary of lists of Cluster objects, one entry per chromosome"""
@@ -500,8 +532,8 @@ def cluster_read_pairs_all(read_pair_list):
     return cluster_list
 
 
-
-def remove_overlapping_clusters(cluster_list):
+#@profile
+def remove_overlapping_clusters(cluster_list,min_size=0):
     """returns a list of clusters that do not overlap with any other. input is a list of lists of AlignedReadPair objects, sorted by end position.
     thus the start coordinate of the cluster will be the start coordinate of its first element: cluster[0]
     and the end coordinate of the cluster will be the end coordinate of its last element: cluster[-1]"""
@@ -517,7 +549,7 @@ def remove_overlapping_clusters(cluster_list):
         if current_cluster.cluster_end < next_cluster.cluster_start:
             next_cluster_is_overlapped = False
             #and is not overlapped itself
-            if not current_cluster_is_overlapped:
+            if not current_cluster_is_overlapped and current_cluster.num_reads >= min_size:
                 #add it to the list
                 non_overlapping_clusters.append(current_cluster)
         #otherwise, flag the next cluster as overlapped
@@ -526,12 +558,14 @@ def remove_overlapping_clusters(cluster_list):
         #update current to next
         current_cluster = next_cluster
         current_cluster_is_overlapped = next_cluster_is_overlapped
-
-    # add last cluster if it is not overlapped
-    if not current_cluster_is_overlapped:
-        #add it to the list
-        non_overlapping_clusters.append(current_cluster)
-
+    
+    ## MATTIA comment:
+        # The last cluster is never printed right?
+        # maybe an escape line like
+        # if currennt_cluster_is_overlapped == F:
+        #   non_overlapping_clusters.append(current_cluster)
+        # should be added when the for ends.
+    
     #for cluster in non_overlapping_clusters:
     #    print " ".join(read.str_int() for read in cluster)
 
