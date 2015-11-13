@@ -3,7 +3,7 @@ import pybedtools
 import sys
 import numpy
 from AlignedReadPair import *
-
+import gc
 
 class BamReader:
 
@@ -612,6 +612,9 @@ class BamReader:
         refs = bam_file.references
         bam_file.close()
 
+	del read_names_set
+	del read_pairs_dict
+	gc.collect()
         return (bam_stats, lengths, refs)
 
 

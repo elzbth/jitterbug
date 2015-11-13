@@ -14,11 +14,11 @@ import os
 import shlex
 
 from memory_profiler import profile
+import gc
 
-
-# @profile
+#@profile
 def run_jitterbug_streaming(psorted_bamfile_name, verbose, te_annot, \
-    te_seqs, library_name, num_sdev, output_prefix, TE_name_tag, parallel, num_CPUs, bin_size, min_mapq, generate_test_bam, print_extra_output, conf_lib_stats, mem, min_cluster_size):
+    te_seqs, library_name, num_sdev, output_prefix, TE_name_tag, parallel, num_CPUs, bin_size, min_mapq, generate_test_bam, print_extra_output, conf_lib_stats, mem, min_cluster_size,step1only=False,step2only=False):
 
 
     
@@ -79,12 +79,14 @@ def run_jitterbug_streaming(psorted_bamfile_name, verbose, te_annot, \
 
     # open subprocess 
     try:
-        outfile = open(filtered_bam_file_name, "w")
-        p1 = subprocess.Popen(args1, stdout=subprocess.PIPE)
-        p2 = subprocess.Popen(args2, stdin=p1.stdout, stdout=outfile)
-        p1.stdout.close()
-        output = p2.communicate()[0]
-
+        if not(step2only):
+	    outfile = open(filtered_bam_file_name, "w")
+	    p1 = subprocess.Popen(args1, stdout=subprocess.PIPE)
+	    p2 = subprocess.Popen(args2, stdin=p1.stdout, stdout=outfile)
+	    p1.stdout.close()
+	    output = p2.communicate()[0]
+	else:
+	    print "Skipping step 1 of bam file filtering."
         # p = subprocess.Popen(args)
         # p.wait()
 
@@ -94,7 +96,9 @@ def run_jitterbug_streaming(psorted_bamfile_name, verbose, te_annot, \
         sys.exit(1)
     
 
-
+    if step1only:
+	print "Step 1 finished. Halting execution"
+	sys.exit(0)
 
     # Make BamReader object with bam file of mapped and sorted reads
     # NOTE: uncomment this later !!!!!!!!!!!!!
@@ -153,27 +157,27 @@ def run_jitterbug_streaming(psorted_bamfile_name, verbose, te_annot, \
 
         
     valid_discordant_reads_file_name = output_prefix + ".valid_discordant_pairs.bam"
-
+    
     print "selecting discordant reads..."
     #this writes the bam file of discordant reads to disc to be used later, and return the counts of different types of reads  
     (bam_stats, ref_lengths, ref_names) = psorted_bam_reader.select_discordant_reads_psorted( verbose, isize_mean, valid_discordant_reads_file_name)
     #print ref_names, ref_lengths
     coverage = (bam_stats["total_reads"] * rlen_mean )/ sum(ref_lengths)
-
+    
     filter_conf_file = open(output_prefix + ".filter_config.txt", "w")
     filter_conf_file.write("cluster_size\t2\t%d\n" % (5*coverage))
     filter_conf_file.write("span\t2\t%d\n" % isize_mean)
     filter_conf_file.write("int_size\t%d\t%d\n" % (rlen_mean, 2*(isize_mean + 2*isize_sdev - (rlen_mean - rlen_sdev))) )
     filter_conf_file.write("softclipped\t2\t%d\n" % (5*coverage))
     filter_conf_file.write("pick_consistent\t0\t-1")
-
+    
     filter_conf_file.close()
-
+    
     bam_stats_file = open(output_prefix + ".bam_stats.txt", "w")
     for key, value in bam_stats.items():
         bam_stats_file.write("%s\t%d\n" % (key, value))
     bam_stats_file.close()
-
+    
     time = datetime.datetime.now()
     print "elapsed time: " + str(time - start_time)
 
@@ -192,7 +196,8 @@ def run_jitterbug_streaming(psorted_bamfile_name, verbose, te_annot, \
         discordant_bam_reader = BamReader(valid_discordant_reads_file_name, output_prefix)
         read_pair_one_overlap_TE_list = discordant_bam_reader.select_read_pair_one_overlap_TE_annot(te_annot, interval_size, min_mapq)
         if not print_extra_output:
-            os.remove(valid_discordant_reads_file_name)
+           pass 
+	   #os.remove(valid_discordant_reads_file_name)
 
     else:
 
@@ -239,7 +244,7 @@ def run_jitterbug_streaming(psorted_bamfile_name, verbose, te_annot, \
     
     del read_pair_one_overlap_TE_list
     del cluster_list
-
+    gc.collect()
 
     ###############
     # for mem debug
@@ -247,12 +252,14 @@ def run_jitterbug_streaming(psorted_bamfile_name, verbose, te_annot, \
     ###############
 
 
-    # construct list of args 
+    ## construct list of args 
     args = ["samtools", "view", "-hb", "-L", bed_file_name, "-o", ins_regions_bam_name, psorted_bamfile_name]
     # open subprocess 
     int_bed_reads_select = subprocess.Popen(args)
     # wait till it finishes
     outcode = int_bed_reads_select.wait()
+    
+    #subprocess.call("samtools view -hb -L %s -o %s %s"%(bed_file_name,ins_regions_bam_name,psorted_bamfile_name),shell=True)
 
     if outcode  == 0:
         print "retrieving reads overlapping bed annots successful"
