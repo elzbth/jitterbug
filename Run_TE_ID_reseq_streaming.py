@@ -13,7 +13,7 @@ from pysam import csamtools
 import os
 import shlex
 
-from memory_profiler import profile
+# from memory_profiler import profile
 
 
 @profile

@@ -15,7 +15,7 @@ import os
 import resource
 import gc
 
-from memory_profiler import profile
+# from memory_profiler import profile
 
 
 def reportResource(point=""):
@@ -25,7 +25,7 @@ def reportResource(point=""):
                 (usage[2]*resource.getpagesize())/1000000.0 )
 
 
-@profile 
+# @profile 
 def run_jitterbug(psorted_bamfile_name, already_calc_discordant_reads, valid_discordant_reads_file_name, verbose, te_annot, \
     te_seqs, library_name, num_sdev, output_prefix, TE_name_tag, parallel, num_CPUs, bin_size, min_mapq, generate_test_bam, print_extra_output, conf_lib_stats, mem, min_cluster_size):
 
