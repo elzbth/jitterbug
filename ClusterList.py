@@ -7,7 +7,7 @@ import pysam
 #from pysam import csamtools
 
 from multiprocessing import Pool
-import multiprocessing
+import multiprocessing as mp 
 
 
 class ClusterList:
@@ -84,15 +84,15 @@ class ClusterList:
         #print rev_clusters_by_bin.keys()
         for key in fwd_clusters_by_bin.keys():
             if key in rev_clusters_by_bin.keys():
-                input_arg_list.append((key, fwd_clusters_by_bin[key], rev_clusters_by_bin[key], psorted_bamfile_name, verbose, bed_file_handle, streaming, min_cluster_size))
+                input_arg_list.append((key, fwd_clusters_by_bin[key], rev_clusters_by_bin[key], psorted_bamfile_name, verbose, streaming, min_cluster_size))
 
         #print input_arg_list[0][0][0].readpair_list[0].read1
 
         print("sending %d jobs to %d processes" % (len(input_arg_list), num_CPUs))
 
-        multiprocessing.set_start_method('spawn')
+        mp.set_start_method('spawn')
 
-        pool = Pool(num_CPUs, maxtasksperchild=1)
+        pool = Pool(num_CPUs)
 
         # dummy_arg_list = [("string1", "string2")] * len(input_arg_list)
 
@@ -212,6 +212,10 @@ class ClusterList:
         #         unpaired_rev_clusters.append(non_overlapping_rev_clusters[rev_index])
 
 
+        # print bed_string
+        bed_file_handle.write(bed_string)
+        bed_file_handle.close()
+
 
         print("******************total cluster pairs found: %d" %  len(cluster_pairs))
         if verbose:
@@ -226,7 +230,7 @@ class ClusterList:
                 print(" ".join(read.str_int() for read in rev_cluster))
                 print(" ".join(read.str_TE_annot_list() for read in rev_cluster))
 
-        return (cluster_pairs, None, None, bed_string)
+        return (cluster_pairs, [], [], bed_string)
 
 
 ############################### END NON PARALLEL VERSION ########################################################
@@ -237,7 +241,7 @@ class ClusterList:
 
 def pair_clusters_by_bin(param_list):
 
-    (key, fwd_clusters, rev_clusters, bam_file_name, verbose, bed_file_handle, streaming, min_cluster_size) = param_list
+    (key, fwd_clusters, rev_clusters, bam_file_name, verbose, streaming, min_cluster_size) = param_list
 
 
     print("processing cluster pairs on %s" % (key))
@@ -303,9 +307,9 @@ def pair_clusters_by_bin(param_list):
     #     return (cluster_pairs, unpaired_fwd_clusters, unpaired_rev_clusters)
 
     if streaming:
-        return (cluster_pairs, None, None, bed_string)
+        return (cluster_pairs, [], [], bed_string)
     else:
-        return (cluster_pairs, None, None)
+        return (cluster_pairs, [], [])
 
 
 

@@ -16,7 +16,7 @@ import shlex
 from memory_profiler import profile
 
 
-# @profile
+@profile
 def run_jitterbug_streaming(psorted_bamfile_name, verbose, te_annot, \
     te_seqs, library_name, num_sdev, output_prefix, TE_name_tag, parallel, num_CPUs, bin_size, min_mapq, generate_test_bam, print_extra_output, conf_lib_stats, mem, min_cluster_size):
 
@@ -230,8 +230,8 @@ def run_jitterbug_streaming(psorted_bamfile_name, verbose, te_annot, \
     cluster_list = ClusterList(read_pair_one_overlap_TE_list)
 
     if not parallel:
-        (cluster_pairs, unpaired_fwd_clusters, unpaired_rev_clusters) = cluster_list.generate_clusters(verbose, psorted_bamfile_name, bed_file_handle, True, min_cluster_size)
-        all_clusters = [(cluster_pairs, unpaired_fwd_clusters, unpaired_rev_clusters)]
+        (cluster_pairs, unpaired_fwd_clusters, unpaired_rev_clusters, string) = cluster_list.generate_clusters(verbose, psorted_bamfile_name, bed_file_handle, True, min_cluster_size)
+        all_clusters = [(cluster_pairs, unpaired_fwd_clusters, unpaired_rev_clusters, string)]
     #parallel version:
     else:
         # empty string is psorted bed file name, and True is streaming
