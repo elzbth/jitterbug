@@ -126,8 +126,39 @@ def run_jitterbug_streaming(psorted_bamfile_name, verbose, te_annot, \
     else:
 
         # disable this calculation for the time being for the streaming analysis -- require a conf file
-        print "error! must supply configuration file of library stats"
-        sys.exit(1) 
+        # print "error! must supply configuration file of library stats"
+        # sys.exit(1) 
+
+        # Get the mean and sdev of insert size from the original bam file
+        print "calculating mean insert size..."
+        iterations = 1000000
+        (isize_mean, isize_sdev, rlen_mean, rlen_sdev) = psorted_bam_reader.calculate_mean_sdev_isize(iterations)
+        print "mean fragment length over %d reads: %.2f" % (iterations, isize_mean)
+        print "standard deviation of fragment_length: %.2f" % (isize_sdev)
+        print "mean read length: %.2f" % (rlen_mean)
+        print "standard deviation of read length: %.2f" % (rlen_sdev)
+
+        stats_file = open(output_prefix + ".read_stats.txt", "w")
+        stats_file.write("fragment_length\t%.2f\n" % (isize_mean))
+        stats_file.write("fragment_length_SD\t%.2f\n" % (isize_sdev))
+        stats_file.write("read_length\t%.2f\n" % (rlen_mean))
+        stats_file.write("read_length_SD\t%.2f" % (rlen_sdev))
+
+        stats_file.close()
+
+        #if fragment sdev is much larger than expected, there might be a problem with the reads of the mapping. Set as default 0.1*fragment length as a reasonable guess. 
+        # This is necessary because aberrant values for sdev will mess up the interval overlap calculation and the filtering 
+        if isize_sdev > 0.2*isize_mean:
+            isize_sdev = 0.1*isize_mean
+            print "WARNING: fragment length standard deviation seems way too large to be realistic.\\n\
+            There is maybe something weird with the flags in your bam mapping, or a very large number of large SV \\n\
+            that are messing up the count.\\n\
+            Setting the stdev to 0.1*fragment_length = %.2f for downstream calculations" % isize_sdev
+
+
+
+        time = datetime.datetime.now()
+        print "elapsed time: " + str(time - start_time)
 
 
 

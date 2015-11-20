@@ -93,8 +93,8 @@ def main(argv):
     if args.conf_lib_stats and not os.path.exists(args.conf_lib_stats):
         parser.error("error in optional argument --conf_lib_stats: file %s does not exist" % (args.conf_lib_stats))
 
-    if args.pre_filter and not (args.output_prefix and args.conf_lib_stats):
-        parser.error("error: if --pre_filter is set, --output_prefix and --conf_lib_stats must be too")
+    # if args.pre_filter and not (args.output_prefix and args.conf_lib_stats):
+    #     parser.error("error: if --pre_filter is set, --output_prefix and --conf_lib_stats must be too")
 
     
     ##set appropriate booleans. This is slightly redundant and could be collapsed, but for legacy reasons it's this way
