@@ -213,8 +213,9 @@ class ClusterList:
 
 
         # print bed_string
-        bed_file_handle.write(bed_string)
-        bed_file_handle.close()
+        if streaming: 
+            bed_file_handle.write(bed_string)
+            bed_file_handle.close()
 
 
         print("******************total cluster pairs found: %d" %  len(cluster_pairs))
