@@ -25,15 +25,17 @@ class BamReader:
         isize_array = []
         read_length_array = []
 
-        while counter < num_itr - 1:
-            read = bam_file.next()
-            #print str(read)
-            #print read.fancy_str()
+        for read in bam_file.fetch(until_eof=True) :
+
             if read.is_proper_pair and read.mapq > 30:
                 # print read.pos
                 isize_array.append(abs(read.isize))
                 read_length_array.append(read.rlen)
                 counter += 1
+            if counter > num_itr:
+                break
+
+
         mean = numpy.mean(isize_array)
         sdev = numpy.std(isize_array)
         rlen_mean = numpy.mean(read_length_array)
