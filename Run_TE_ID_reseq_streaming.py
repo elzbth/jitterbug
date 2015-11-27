@@ -12,16 +12,30 @@ import subprocess
 from pysam import csamtools
 import os
 import shlex
-
-from memory_profiler import profile
+#from memory_profiler import profile
 import gc
+import cPickle as pickle
+import psutil
+import multiprocessing
+import time as timetime
 
-#@profile
+
+def load_pickle(filename):
+    with open(filename, "rb") as f:
+        while True:
+            try:
+                yield pickle.load(f)
+            except EOFError:
+                break
+
+
+#@profdile
 def run_jitterbug_streaming(psorted_bamfile_name, verbose, te_annot, \
     te_seqs, library_name, num_sdev, output_prefix, TE_name_tag, parallel, num_CPUs, bin_size, min_mapq, generate_test_bam, print_extra_output, conf_lib_stats, mem, min_cluster_size,step1only=False,step2only=False):
-
-
     
+    proc = psutil.Process(os.getpid())
+
+    print proc.get_memory_info().rss
 
     #NOTE: comment this later !!!!!!!!!!!!!!!!
     #sorted_bam_reader = BamReader(output_prefix + ".proper_pair.sorted.bam", output_prefix)
@@ -157,6 +171,8 @@ def run_jitterbug_streaming(psorted_bamfile_name, verbose, te_annot, \
 
         
     valid_discordant_reads_file_name = output_prefix + ".valid_discordant_pairs.bam"
+    database_file=output_prefix+"dbfile.sqlite"
+    
     
     print "selecting discordant reads..."
     #this writes the bam file of discordant reads to disc to be used later, and return the counts of different types of reads  
@@ -191,10 +207,12 @@ def run_jitterbug_streaming(psorted_bamfile_name, verbose, te_annot, \
 
     print "selecting discordant read pairs where exactly one maps to a TE..."
     interval_size = isize_mean + num_sdev * isize_sdev
-
+    
     if te_annot:
         discordant_bam_reader = BamReader(valid_discordant_reads_file_name, output_prefix)
-        read_pair_one_overlap_TE_list = discordant_bam_reader.select_read_pair_one_overlap_TE_annot(te_annot, interval_size, min_mapq)
+	### This one has been edited to reduce RAM usage to a fixed cuota and store all results outside in sqlite file
+        read_pair_one_overlap_TE_list = discordant_bam_reader.select_read_pair_one_overlap_TE_annot(te_annot, interval_size, min_mapq,database_file,bin_size)
+	read_pair_one_overlap_TE_list=[1,1]
         if not print_extra_output:
            pass 
 	   #os.remove(valid_discordant_reads_file_name)
@@ -228,29 +246,50 @@ def run_jitterbug_streaming(psorted_bamfile_name, verbose, te_annot, \
         print "there might be an error, no discordant reads mapped to a TE location. please check the gff file... are the chromosome names the same as in the reference?"
         sys.exit(2)
     cluster_list = ClusterList(read_pair_one_overlap_TE_list)
-
-    if not parallel:
-        (cluster_pairs, unpaired_fwd_clusters, unpaired_rev_clusters) = cluster_list.generate_clusters(verbose, psorted_bamfile_name, bed_file_handle, True, min_cluster_size)
-        all_clusters = [(cluster_pairs, unpaired_fwd_clusters, unpaired_rev_clusters)]
-    #parallel version:
-    else:
-        # empty string is psorted bed file name, and True is streaming
-        all_clusters = cluster_list.generate_clusters_parallel(verbose, num_CPUs, bin_size, "", bed_file_handle, True, min_cluster_size)
-        # bed_file_handle.close()
-
-
+    
+    #if not parallel:
+    #    (cluster_pairs, unpaired_fwd_clusters, unpaired_rev_clusters) = cluster_list.generate_clusters(verbose, psorted_bamfile_name, bed_file_handle, True, min_cluster_size)
+    #    all_clusters = [(cluster_pairs, unpaired_fwd_clusters, unpaired_rev_clusters)]
+    ##parallel version:
+    #else:
+    #    # empty string is psorted bed file name, and True is streaming
+    #    all_clusters = cluster_list.generate_clusters_parallel(verbose, num_CPUs, bin_size, "", bed_file_handle, True, min_cluster_size,output_prefix)
+    #    # bed_file_handle.close()
+    
+    ##### Alternative with low RAM because it prints out all the results at once and use the database file sqlite from before.
+    all_clusters = cluster_list.generate_clusters_db(database_file,bin_size,output_prefix,"", verbose, bed_file_handle, True, min_cluster_size)
+ 
     ### retrieve reads in the intervals where insertions were predicted and use them to calculate allelic frequency (zygosity) of the predictions
     ins_regions_bam_name = output_prefix + ".insertion_regions.reads.bam"
     
+    
+    #################################
+    # ATTEMPT TO REDUCE MEMORY
+    #################################
+    print proc.get_memory_info().rss
     del read_pair_one_overlap_TE_list
     del cluster_list
     gc.collect()
+    timetime.sleep(30)
+    print proc.get_memory_info().rss
+#    with open(output_prefix+'all_clusters.pkl', 'wb') as output:
+#    ### saving the biggest object in a text file to avoid os.fork later
+#	pickle.dump(all_clusters, output, pickle.HIGHEST_PROTOCOL)
+#    #del all_clusters
+    gc.collect()
+    print proc.get_memory_info().rss
+    
+    
+    ####print out all the existing variables ###
+    #import pprint
+    ##pprint.pprint(locals())
+    #with open("locals_out.txt", "w") as fout:
+    #    fout.write(pprint.pformat(locals()))
 
     ###############
     # for mem debug
     # return 0
     ###############
-
 
     ## construct list of args 
     args = ["samtools", "view", "-hb", "-L", bed_file_name, "-o", ins_regions_bam_name, psorted_bamfile_name]
@@ -260,6 +299,7 @@ def run_jitterbug_streaming(psorted_bamfile_name, verbose, te_annot, \
     outcode = int_bed_reads_select.wait()
     
     #subprocess.call("samtools view -hb -L %s -o %s %s"%(bed_file_name,ins_regions_bam_name,psorted_bamfile_name),shell=True)
+    gc.collect()
 
     if outcode  == 0:
         print "retrieving reads overlapping bed annots successful"
@@ -273,6 +313,8 @@ def run_jitterbug_streaming(psorted_bamfile_name, verbose, te_annot, \
             print "indexing successful"
         else:
             print "indexing failed"
+	    
+	gc.collect()
 
     else:
         command = "\t".join(args)
@@ -280,11 +322,26 @@ def run_jitterbug_streaming(psorted_bamfile_name, verbose, te_annot, \
         sys.exit(1)
 
     insertion_regions_reads_bam = pysam.Samfile(ins_regions_bam_name, mode="rb")
-
+    
+    
+    ######ATTEMPT TO SAVE MEMORY, reload all_clusters ####
+    print proc.get_memory_info().rss
+#    with open(output_prefix+'all_clusters.pkl', 'rb') as infile:
+#	all_clusters = pickle.load(infile)
+    all_clusters=list(load_pickle(output_prefix+'all_clusters.pkl'))
+    print proc.get_memory_info().rss
+    ########################################################
+	    
     for (cluster_pairs, fwd, rev, string) in all_clusters:
-        for cluster_pair in cluster_pairs:
-            reads = insertion_regions_reads_bam.fetch(cluster_pair.get_chr(), cluster_pair.get_insertion_int_start(), cluster_pair.get_insertion_int_end())
-            cluster_pair.calc_zygosity(reads)
+	for cluster_pair in cluster_pairs:
+	    try:
+		reads = insertion_regions_reads_bam.fetch(cluster_pair.get_chr(), cluster_pair.get_insertion_int_start(), cluster_pair.get_insertion_int_end())
+		cluster_pair.calc_zygosity(reads)
+	    except:
+		print "error calculating zygosity of: "
+		print cluster_pair
+		raise
+    print "Done calculating zygosity of each cluster pair"    
 
 
 
@@ -366,7 +423,11 @@ def run_jitterbug_streaming(psorted_bamfile_name, verbose, te_annot, \
     run_stats.write("runtime\t%s\n" % ( datetime.datetime.now() - start_time))
     run_stats.write("numCPUs\t%s\n" % (num_CPUs))
     run_stats.close()
-
+    ####### delete pickled file once all it's finished####
+    try:
+        os.unlink(output_prefix+'all_clusters.pkl')
+    except:
+	pass
 
 
 

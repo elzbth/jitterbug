@@ -9,6 +9,9 @@ import gc
 #from memory_profiler import profile
 
 from multiprocessing import Pool
+import cPickle as pickle
+import y_serial_v060 as y_serial
+
 
 
 class ClusterList:
@@ -26,7 +29,7 @@ class ClusterList:
 
     #cluster the read pairs according to the interval defined by the non-TE mapped read
     #@profile
-    def generate_clusters_parallel(self, verbose, num_CPUs, bin_size, psorted_bamfile_name, bed_file_handle, streaming, min_cluster_size):
+    def generate_clusters_parallel(self, verbose, num_CPUs, bin_size, psorted_bamfile_name, bed_file_handle, streaming, min_cluster_size,output_prefix):
 
 ###################### BEGIN PARALLEL VERSION ########################################
 
@@ -160,8 +163,10 @@ class ClusterList:
             # print bed_string
             bed_file_handle.write(bed_string)
             bed_file_handle.close()
-
-            return all_clusters_by_bin
+            with open(output_prefix+'all_clusters.pkl', 'wb') as output:
+                ### saving the biggest object in a text file to avoid os.fork later
+                pickle.dump(all_clusters_by_bin, output, pickle.HIGHEST_PROTOCOL)              
+            return '' #all_clusters_by_bin
 
         else:
             cluster_counts = [(len(p), len(f), len(r)) for (p,f,r) in all_clusters_by_bin]
@@ -170,7 +175,7 @@ class ClusterList:
             print "******************total cluster pairs found: %d" %  sum([p for (p,f,r) in cluster_counts])
 
             
-
+    
             return all_clusters_by_bin
 
 
@@ -268,6 +273,88 @@ class ClusterList:
 
 ############################### END NON PARALLEL VERSION ########################################################
 
+    def generate_clusters_db(self,db,binsize,output_prefix,bam_file_name, verbose, bed_file_handle, streaming, min_cluster_size):
+        #"Reads the database with the valid read pairs"
+        #"Recovers the tables and extracts the ID fwd and rev"
+        #" Table name format: chr_start_end_direction"
+        print "Generating clusters for each bin"
+        output=list()
+        bed_string=""
+        total_fwd_clusters=0
+        total_rev_clusters=0
+        total_pairs=0
+        #import sqlite3 as ysql
+        #con = ysql.connect( db.db,    timeout = db.TIMEOUT,isolation_level = db.TRANSACT )
+        #cur = con.cursor()
+        #cur.execute("SELECT name FROM sqlite_master WHERE type='table';")
+        #table_list = cur.fetchall()
+        
+        read_pair_database = y_serial.Main(db)
+        table_list=read_pair_database.select(0,'bin_list')       
+        
+        fwd_bins=list()
+        rev_bins=list()
+        #con.close()
+        for tablename in table_list:
+            #print tablename
+            #tablename=str(element[0])
+            if 'fwd' in tablename:
+                fwd_bins.append(tablename.split('_fwd')[0])
+            elif 'rev' in tablename:
+                rev_bins.append(tablename.split('_rev')[0])
+            else:
+                print tablename
+                raise
+        #"Generate dictionaries with all bins in the two directions"
+        #read_pair_database = y_serial.Main(db)
+        common_bins = list(set(fwd_bins) & set(rev_bins))
+        tmp_list= list()
+        #For all common keys
+        with open(output_prefix +'all_clusters.pkl' ,'wb') as of:
+            for bin_key in common_bins:
+                #print "Processing %s Bin"%bin_key
+                #   retrieve all read pairs for FWD and REV
+                #   generate cluster in this Bin
+                fwd_read_pairs = list()
+                rev_read_pairs = list()
+                iterable = read_pair_database.selectdic(bin_key.replace('[','')+'_fwd','read_pairs')
+                for k,v in iterable.items():
+                    fwd_read_pairs.append(v[2])
+                fwd_clusters=cluster_read_pairs_all(fwd_read_pairs)
+                del fwd_read_pairs
+                iterable = read_pair_database.selectdic(bin_key.replace('[','')+'_rev','read_pairs')
+                for k,v in iterable.items():
+                    rev_read_pairs.append(v[2])
+                rev_clusters=cluster_read_pairs_all(rev_read_pairs)
+                del rev_read_pairs
+                #   pair the clusters in this bin
+                #   save iteratively the value in a pickled file
+                tmp = pair_clusters_by_bin((bin_key, fwd_clusters, rev_clusters, bam_file_name, verbose, bed_file_handle, streaming, min_cluster_size))
+                #print tmp
+                #
+                #tmp_list.append(tmp)
+                pickle.dump(tmp,of,pickle.HIGHEST_PROTOCOL)
+                bed_string += tmp[3]
+                bed_string+='\n'
+                total_fwd_clusters+=len(tmp[1])
+                total_rev_clusters+=len(tmp[2])
+                total_pairs+=len(tmp[0])
+            #pickle.dump(tmp_list,of,pickle.HIGHEST_PROTOCOL)
+        #Get back to Run_TE_xxx with the all_cluster file already saved
+        
+        #cluster_counts = [(len(p), len(f), len(r)) for (p,f,r,s) in tmp]
+        print "******************total fwd single clusters found: %d"%(total_fwd_clusters)
+        print "******************total rev single clusters found: %d"%(total_rev_clusters)
+        print "******************total cluster pairs found: %d"%(total_pairs)
+        # print bed_string
+        bed_file_handle.write(bed_string)
+        bed_file_handle.close()
+        
+        
+        return
+
+
+
 #@profile
 def pair_clusters_by_bin((key, fwd_clusters, rev_clusters, bam_file_name, verbose, bed_file_handle, streaming, min_cluster_size)):
 
@@ -336,12 +423,6 @@ def pair_clusters_by_bin((key, fwd_clusters, rev_clusters, bam_file_name, verbos
         return (cluster_pairs, unpaired_fwd_clusters, unpaired_rev_clusters, bed_string)
     else:
         return (cluster_pairs, unpaired_fwd_clusters, unpaired_rev_clusters)
-
-
-
-
-
-
 
 #helper functions
 ##@profile
