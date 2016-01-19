@@ -177,6 +177,7 @@ def run_jitterbug_streaming(psorted_bamfile_name, verbose, te_annot, \
     print "selecting discordant reads..."
     #this writes the bam file of discordant reads to disc to be used later, and return the counts of different types of reads  
     (bam_stats, ref_lengths, ref_names) = psorted_bam_reader.select_discordant_reads_psorted( verbose, isize_mean, valid_discordant_reads_file_name)
+    
     #print ref_names, ref_lengths
     coverage = (bam_stats["total_reads"] * rlen_mean )/ sum(ref_lengths)
     
