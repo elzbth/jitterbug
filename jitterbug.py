@@ -53,6 +53,8 @@ def main(argv):
     parser.add_argument("-s", "--conf_lib_stats", help="tabulated config file that sets the values to use for fragment length and sdev, read length and sdev. \
         4 tab-deliminated lines: key\tvalue, keys are:fragment_length, fragment_length_SD, read_length,  read_length_SD")
     parser.add_argument("-c", "--min_cluster_size", type=int, help="min number of both fwd and rev reads to predict an insertion", default=2)
+    parser.add_argument("--step_one_only", dest='step_one_only', action='store_true', help="if specified it stops execution after the first BAM filtering", default=False)
+    parser.add_argument("--step_two_only", dest='step_two_only', action='store_true', help="if specified it starts exection after the first BAM filtering", default=False)
 
 
     #optional arguments for debug
@@ -99,7 +101,7 @@ def main(argv):
     
     ##set appropriate booleans. This is slightly redundant and could be collapsed, but for legacy reasons it's this way
     #TODO: streamline this
-    parallel = args.numCPUs > 1
+    parallel = args.numCPUs >= 1
     already_calc_discordant_reads = args.disc_reads_bam != None
 
     ##legacy vars from previous versions, that are not worth putting in public opts but I don't want to get rid of quite yet
@@ -115,7 +117,7 @@ def main(argv):
     if args.pre_filter:
         run_jitterbug_streaming(args.mapped_reads, args.verbose, args.TE_annot, te_seqs, \
             args.lib_name, args.sdev_mult, args.output_prefix, args.TE_name_tag, parallel, \
-            args.numCPUs, args.bin_size, args.minMAPQ, generate_test_bam, args.pre_filter, args.conf_lib_stats, mem, args.min_cluster_size)
+            args.numCPUs, args.bin_size, args.minMAPQ, generate_test_bam, args.pre_filter, args.conf_lib_stats, mem, args.min_cluster_size,args.step_one_only,args.step_two_only)
 
     else:
         run_jitterbug(args.mapped_reads, already_calc_discordant_reads, \
