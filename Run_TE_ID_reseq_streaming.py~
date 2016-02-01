@@ -114,7 +114,10 @@ def run_jitterbug_streaming(psorted_bamfile_name, verbose, te_annot, \
 	print "Step 1 finished. Halting execution"
 	sys.exit(0)
 
-    
+    # Make BamReader object with bam file of mapped and sorted reads
+    # NOTE: uncomment this later !!!!!!!!!!!!!
+    psorted_bam_reader = BamReader(filtered_bam_file_name, output_prefix)
+
     if generate_test_bam:
             print "generating test bam"
             psorted_bam_reader.output_one_chr_reads()
@@ -144,8 +147,7 @@ def run_jitterbug_streaming(psorted_bamfile_name, verbose, te_annot, \
         # print "error! must supply configuration file of library stats"
         # sys.exit(1) 
 
-        # Get the mean and sdev of insert size from the ORIGINAL bam file
-        psorted_bam_reader = BamReader(psorted_bamfile_name, output_prefix)
+        # Get the mean and sdev of insert size from the original bam file
         print "calculating mean insert size..."
         iterations = 1000000
         (isize_mean, isize_sdev, rlen_mean, rlen_sdev) = psorted_bam_reader.calculate_mean_sdev_isize(iterations)
@@ -197,9 +199,6 @@ def run_jitterbug_streaming(psorted_bamfile_name, verbose, te_annot, \
     #<bam_file_name>.valid_discordant_pairs or <bam_file_name>.valid_discordant_pairs_strict_rep depending on the value of -s
 
     #if not already_calc_discordant_reads:
-
-    # Make BamReader object with bam file of FILTERED reads
-    psorted_bam_reader = BamReader(filtered_bam_file_name, output_prefix)
 
         
     valid_discordant_reads_file_name = output_prefix + ".valid_discordant_pairs.bam"

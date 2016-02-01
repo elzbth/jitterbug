@@ -41,6 +41,7 @@ def main(argv):
     # parser.add_argument("--mem", help="bam file has been mapped with bwa-mem and you want to use split (=chimeric=supplementary) reads. If unset, bam files \
     #    mapped with either bwa or bwa-mem can be used, but split reads will be ignored", action="store_true")
 
+
     #optional arguments
     parser.add_argument("-l", "--lib_name", help="sample or library name, to be included in final gff output")
     parser.add_argument("-d","--sdev_mult", type=int, help="use SDEV_MULT*fragment_sdev + fragment_length when calculating insertion intervals. Best you don't touch this." , default=2)

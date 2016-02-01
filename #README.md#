@@ -14,7 +14,7 @@ Citation
 If you use this software in your work, please cite:
 
 Jitterbug: somatic and germline transposon insertion detection at single-nucleotide resolution
-Elizabeth H√©naff, Lu√≠s Zapata, Josep M. Casacuberta, and Stephan Ossowski
+Elizabeth HÅÈnaff, LuÅÌs Zapata, Josep M. Casacuberta, and Stephan Ossowski
 
 BMC Genomics. 2015; 16: 768.
 PMCID: PMC4603299
@@ -33,7 +33,6 @@ version 2.7 or greater (Jitterbug has not been tested with Python3)
 Python modules:
 pysam (https://github.com/pysam-developers/pysam)
 pybedtools (https://pythonhosted.org/pybedtools/)
-psutil (https://pypi.python.org/pypi/psutil)
 
 For the companion scripts to plot results and process tumor/normal pairs, you will need:
 
@@ -41,19 +40,8 @@ matplotlib (http://matplotlib.org/)
 matplotlib-venn (https://pypi.python.org/pypi/matplotlib-venn)
 numpy (http://www.numpy.org/)
 
-All of these modules are available to install through pip (https://pypi.python.org/pypi/pip)
-So, you can run: 
-    
-    pip install <module_name>
 
-to install each of the above mentioned modules. 
 
-#### note on memory usage
-If you are dealing with large input files (i.e. the human genome and not Arabidopsis) you may want to use the
-
-    --pre_filter 
-option to pre-select discordant reads with samtools. 
-This will write an additional file to disk, but use less memory during runtime. 
 
 
 ## USE CASE 1: predict TEI in a single sample
@@ -251,49 +239,25 @@ the output are:
 the last column is a flag: PUTATIVE-SOM if less than 50% of the reads in that interval are not discordant (meaning it might be a somatic insertion in the tumor) and NON-SOM if not
 
 
-## USE CASE 3: leverage multiple samples for multi-sample calling
-If you have multiple samples, you can refine the calls in each by recovering low-confidence calls (that were excluded by the chosen filtering criteria) that are present as a high-confidence call in another one of your samples. 
-
-The workflow is to: 
-- run jitterbug on all your samples
-- filter the results
-- concatenate and merge the filtered results into a set of unified polymorphic loci
-- for each of your samples, pull out from the raw set of call any that overlaps your set of polymorphic loci. This is the "recovered" set of call, which will include those that would have 
-passed the filtering anyway, and those that would have been excluded but are found as high-confidence in any one of your other samples. 
-
-The script supplied in the tools/ directory inplements this: 
-```
-multisample_caller.sh
-
-Usage:
-
-multisample_caller.sh dir_of_unfiltered_calls dir_of_filtered_calls output_prefix
-```
-
-This will output a set of files, one for each file in dir_of_unfiltered_calls, with 'sample_name' being parsed from the file name:
-
-```
-<output_prefix>.<sample_name>.recovered.gff3
-```
-
-
 Known issues
 ------------
 
-- Large input bams (>40X coverage for the human genome) can lead to high memory usage. To avoid this, you can use the pre_filtering option:
+- Large input bams (>40X coverage for the human genome) can lead to high memory usage. To avoid this, you can pre-filter your bam to extract only discordant read pairs using Samtools (https://samtools.github.io/). You must then sort and index them, and you are ready to feed that bam to Jitterbug. 
+
 ```
-  --pre_filter
+    samtools view -b -F 1294 sample.bam > sample.discordants.unsorted.bam
+    samtools sort sample.discordants.unsorted.bam sample.discordants 
 ```
 
+this generates a file named sample.discordants.bam
 
+     samtools index sample.discordants.bam
 
 - Jitterbug only accepts GFF3 format TE annotations. If you have an annotation in BED format, you can convert it using: (assuming the fourth column is the name)
 
 ```
 awk 'BEGIN{OFS="\t"}{print $1, ".", ".", $2, $3, ".", "+" , "." , "Name="$4}' annot.bed > annot.gff3
 ```
-
-
 
 ## Possible subsequent analyses
 

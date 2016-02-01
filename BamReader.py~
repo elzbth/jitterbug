@@ -42,9 +42,7 @@ class BamReader:
         sdev = numpy.std(isize_array)
         rlen_mean = numpy.mean(read_length_array)
         rlen_sdev = numpy.std(read_length_array)
-        bam_file.close()
         return(mean, sdev, rlen_mean, rlen_sdev)
-
 
     def output_repetitive_reads(self):
         bam_file = pysam.Samfile(self.bam_file_name, "rb")
