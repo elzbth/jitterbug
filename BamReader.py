@@ -103,7 +103,7 @@ class BamReader:
             bam_file.write(read2)
         bam_file.close()
     #@profile 
-    def select_read_pair_one_overlap_TE_annot(self, TE_annot, int_size, min_mapq,db='/users/so/mbosio/test_3/test_out/demo.sqlite',bin_size=50000000):
+    def select_read_pair_one_overlap_TE_annot(self, TE_annot, int_size, min_mapq,db,bin_size=50000000):
 	
         """ output bam file of read pairs where exactly one read overlaps with an annotation in supplied gff file\
             also returns a BedTools object """
