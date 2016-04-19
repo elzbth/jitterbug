@@ -56,6 +56,11 @@ option to pre-select discordant reads with samtools.
 This will write an additional file to disk, but use less memory during runtime. 
 
 
+Specific requirements:
+For Jitterbug to run properly it makes use of a module called y_serial (included).
+This module requires that the specified output folder has read and write access for all users.
+So remember to set for example chmod -R 777 your_output_folder/ or it will crash
+
 ## USE CASE 1: predict TEI in a single sample
 
 
