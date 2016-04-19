@@ -14,8 +14,21 @@ import os
 
 import resource
 import gc
+import cPickle as pickle
+import psutil
+import multiprocessing
+import time as timetime
 
 from memory_profiler import profile
+
+
+def load_pickle(filename):
+    with open(filename, "rb") as f:
+        while True:
+            try:
+                yield pickle.load(f)
+            except EOFError:
+                break
 
 
 def reportResource(point=""):
@@ -132,6 +145,7 @@ def run_jitterbug(psorted_bamfile_name, already_calc_discordant_reads, valid_dis
             reportResource("2")
         
         valid_discordant_reads_file_name = output_prefix + ".valid_discordant_pairs.bam"
+        database_file=output_prefix+"dbfile.sqlite"  
 
         print "selecting discordant reads..."
         #this writes the bam file of discordant reads to disc to be used later, and return the counts of different types of reads  
@@ -181,8 +195,8 @@ def run_jitterbug(psorted_bamfile_name, already_calc_discordant_reads, valid_dis
 
     if te_annot:
         discordant_bam_reader = BamReader(valid_discordant_reads_file_name, output_prefix)
-        read_pair_one_overlap_TE_list = discordant_bam_reader.select_read_pair_one_overlap_TE_annot(te_annot, interval_size, min_mapq)
-
+        read_pair_one_overlap_TE_list = discordant_bam_reader.select_read_pair_one_overlap_TE_annot(te_annot, interval_size, min_mapq,database_file,bin_size)
+        read_pair_one_overlap_TE_list=[1,1]
         if not (print_extra_output or already_calc_discordant_reads):
             os.remove(valid_discordant_reads_file_name)
 
@@ -213,13 +227,20 @@ def run_jitterbug(psorted_bamfile_name, already_calc_discordant_reads, valid_dis
         sys.exit(2)
     cluster_list = ClusterList(read_pair_one_overlap_TE_list)
 
-    if not parallel:
-        (cluster_pairs, unpaired_fwd_clusters, unpaired_rev_clusters, bed_string) = cluster_list.generate_clusters(verbose, psorted_bamfile_name, "", False, min_cluster_size)
-        all_clusters = [(cluster_pairs, unpaired_fwd_clusters, unpaired_rev_clusters)]
-    #parallel version:
-    else:
-        # last tow args are bed file handle and streaming, unnecessary and False, in this version 
-        all_clusters = cluster_list.generate_clusters_parallel(verbose, num_CPUs, bin_size, psorted_bamfile_name, "", False, min_cluster_size)
+
+####    COMMENTED TO TAKE ADVANTAGE OF THE GENERATED DATABASE FILE###
+    #if not parallel:
+    #    (cluster_pairs, unpaired_fwd_clusters, unpaired_rev_clusters, bed_string) = cluster_list.generate_clusters(verbose, psorted_bamfile_name, "", False, min_cluster_size)
+    #    all_clusters = [(cluster_pairs, unpaired_fwd_clusters, unpaired_rev_clusters)]
+    ##parallel version:
+    #else:
+    #    # last tow args are bed file handle and streaming, unnecessary and False, in this version 
+    #    all_clusters = cluster_list.generate_clusters_parallel(verbose, num_CPUs, bin_size, psorted_bamfile_name, "", False, min_cluster_size)
+
+    bed_file_name = output_prefix + ".insertion_regions.bed"
+    bed_file_handle = open(bed_file_name, "w")
+    all_clusters = cluster_list.generate_clusters_db(database_file,bin_size,output_prefix,"", verbose, bed_file_handle, True, min_cluster_size)
+    all_clusters=list(load_pickle(output_prefix+'all_clusters.pkl'))
 
     del read_pair_one_overlap_TE_list
     gc.collect()
@@ -246,7 +267,7 @@ def run_jitterbug(psorted_bamfile_name, already_calc_discordant_reads, valid_dis
 
     print len(all_clusters)
     cluster_ID = 0
-    for (cluster_pairs, unpaired_fwd_clusters, unpaired_rev_clusters) in all_clusters:
+    for (cluster_pairs, unpaired_fwd_clusters, unpaired_rev_clusters,strings) in all_clusters:
 
 
         # unpaired clusters are no longer reported

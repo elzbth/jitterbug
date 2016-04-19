@@ -122,8 +122,10 @@ class BamReader:
 
         #make a list of AlignedReadPair objects for each read pair in the list that has exactly one read overlapping a TE
         read_pairs_xor_overlap_TE = []
+	print '######'
 	print db
-	read_pair_database = y_serial.Main( db )
+	print '######'
+	read_pair_database = y_serial.Main(db)
 	bin_list=list()
 
         try:
