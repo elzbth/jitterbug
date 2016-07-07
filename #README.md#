@@ -14,7 +14,7 @@ Citation
 If you use this software in your work, please cite:
 
 Jitterbug: somatic and germline transposon insertion detection at single-nucleotide resolution
-Elizabeth HÅÈnaff, LuÅÌs Zapata, Josep M. Casacuberta, and Stephan Ossowski
+Elizabeth H¬Å√©naff, Lu¬Å√≠s Zapata, Josep M. Casacuberta, and Stephan Ossowski
 
 BMC Genomics. 2015; 16: 768.
 PMCID: PMC4603299
@@ -33,6 +33,8 @@ version 2.7 or greater (Jitterbug has not been tested with Python3)
 Python modules:
 pysam (https://github.com/pysam-developers/pysam)
 pybedtools (https://pythonhosted.org/pybedtools/)
+pandas (pandas.pydata.org/)
+memory_profiler (https://pypi.python.org/pypi/memory_profiler)
 
 For the companion scripts to plot results and process tumor/normal pairs, you will need:
 
