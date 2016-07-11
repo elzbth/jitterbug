@@ -46,7 +46,7 @@ def main(argv):
     parser.add_argument("-d","--sdev_mult", type=int, help="use SDEV_MULT*fragment_sdev + fragment_length when calculating insertion intervals. Best you don't touch this." , default=2)
     parser.add_argument("-o", "--output_prefix", help="prefix of output files. Can be path/to/directory/file_prefix", default="jitterbug")
     parser.add_argument("-n", "--numCPUs", type=int, help="number of CPUs to use", default=1)
-    parser.add_argument("-b", "--bin_size", type=int, help="If parallelized, size of bins to use, in bp. If numCPUs > 1 and bin_size == 0, will parallelize by entire chromosomes", default=0)
+    parser.add_argument("-b", "--bin_size", type=int, help="If parallelized, size of bins to use, in bp. If numCPUs > 1 and bin_size == 0, will parallelize by entire chromosomes", default=50000000)
     parser.add_argument("-q", "--minMAPQ", type=int, help="minimum read mapping quality to be considered", default=15)
     parser.add_argument("-t", "--TE_name_tag", help="name of tag in TE annotation gff file to use to record inserted TEs", default="Name")
     parser.add_argument("-s", "--conf_lib_stats", help="tabulated config file that sets the values to use for fragment length and sdev, read length and sdev. \
