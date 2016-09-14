@@ -134,11 +134,16 @@ def jitterbug_filter_results(gffFile, config_file, outfile):
 
 
     num_rows = 0
-
+    clsize =0
+    consis=0
+    span_c = 0
+    int_size_c=0
+    softclip_c=0
     IN_GFF_FILE = open(gffFile)
-
+    total_rows =0
 
     for line in IN_GFF_FILE:
+        
         line = line.strip()
         #ignore empty line or comment lines
         if line[0] == '#':
@@ -146,7 +151,7 @@ def jitterbug_filter_results(gffFile, config_file, outfile):
         if line == "":
             continue
         feature = GffAnnot(line)
-
+        total_rows +=1
 
         eliminate = False
         for criteria, (min_val, max_val) in criteria_dict.items():
@@ -154,9 +159,11 @@ def jitterbug_filter_results(gffFile, config_file, outfile):
             if criteria == "cluster_size":
                 if min_val and int(feature.tags['supporting_fwd_reads']) < min_val or int(feature.tags['supporting_rev_reads']) < min_val:
                     eliminate = True
+                    clsize+=1
 
                 if max_val and int(feature.tags['supporting_fwd_reads']) > max_val or int(feature.tags['supporting_rev_reads']) > max_val:
                     eliminate = True
+                    clsize+=1
 
             
             elif criteria == "pick_consistent":
@@ -171,12 +178,18 @@ def jitterbug_filter_results(gffFile, config_file, outfile):
 
                 fwd_fams = feature.tags["Inserted_TE_tags_fwd"].split(", ")
                 rev_fams = feature.tags["Inserted_TE_tags_rev"].split(", ")
-
+                ##?checks for family, if both are undefined they are kept
+                if fwd_fams[0] == rev_fams[0] and fwd_fams[0] == 'undefined':
+                   conflicting =False
+                   element = fwd_fams[0]
+                   
+                   
                 for fwd_fam in fwd_fams:
                     fwd_fam = fwd_fam.strip()
                     if fwd_fam != "undefined" and fwd_fam in rev_fams:
                         conflicting = False
                         element = fwd_fam
+                        consis+=1
                         #print "breaking"
                         break
                 #print "broke"
@@ -190,20 +203,26 @@ def jitterbug_filter_results(gffFile, config_file, outfile):
             elif criteria == "span":
                 if min_val and int(feature.tags['fwd_cluster_span']) < min_val or int(feature.tags['rev_cluster_span']) < min_val:
                     eliminate = True
+                    span_c+=1
                 if max_val and int(feature.tags['fwd_cluster_span']) > max_val or int(feature.tags['rev_cluster_span']) > max_val:
                     eliminate = True
+                    span_c+=1
 
             elif criteria == "int_size":
                 if min_val and feature.length < min_val:
                     eliminate = True
+                    int_size_c+=1
                 if max_val and feature.length > max_val:
                     eliminate = True
+                    int_size_c+=1
                     
             elif criteria == "softclipped":
                 if min_val and int(feature.tags['softclipped_support']) < min_val:
                     eliminate = True
+                    softclip_c+=1
                 if max_val and int(feature.tags['softclipped_support']) > max_val:
                     eliminate = True
+                    softclip_c+=1
 
             
             
@@ -211,11 +230,19 @@ def jitterbug_filter_results(gffFile, config_file, outfile):
         if eliminate:
             continue
 
+
         OUT_GFF_FILE_SELECTED.write(line + "\n")
         
         num_rows += 1
 
-
+    print 'Total rows = %d'%total_rows
+    print 'Passed rows =%d \n'%num_rows
+    print 'Description of the non passed rows:'
+    print 'Problems with softclip support:\t' + str(softclip_c)
+    print 'Wrong interval size:\t' + str(int_size_c)
+    print 'Wrong span size:\t' +    str(span_c)
+    print 'Inconsistency of TE family FWD and REV:\t' + str(consis)
+    print 'Wrong cluster size:\t' + str(clsize)
 
     OUT_GFF_FILE_SELECTED.close()
     
