@@ -242,6 +242,41 @@ def run_jitterbug(psorted_bamfile_name, already_calc_discordant_reads, valid_dis
     all_clusters = cluster_list.generate_clusters_db(database_file,bin_size,output_prefix,"", verbose, bed_file_handle, True, min_cluster_size)
     all_clusters=list(load_pickle(output_prefix+'all_clusters.pkl'))
 
+    ins_regions_bam_name = output_prefix + ".insertion_regions.reads.bam"
+    args = ["samtools", "view", "-hb", "-L", bed_file_name, "-o", ins_regions_bam_name, psorted_bamfile_name]
+    # open subprocess 
+    int_bed_reads_select = subprocess.Popen(args)
+    # wait till it finishes
+    outcode = int_bed_reads_select.wait()
+    if outcode  == 0:
+        print "retrieving reads overlapping bed annots successful"
+        # construct list of args 
+        args = ["samtools", "index", ins_regions_bam_name]
+        # open subprocess 
+        int_bed_reads_index = subprocess.Popen(args)
+        # wait till it finishes
+        outcode = int_bed_reads_index.wait()
+        if outcode == 0:
+                print "indexing successful"
+        else:
+                print "indexing failed"
+    else:
+        command = "\t".join(args)
+        print "retrieving reads overlapping bed annots failed! command: %s " % (command)
+        sys.exit(1)
+    insertion_regions_reads_bam = pysam.Samfile(ins_regions_bam_name, mode="rb")
+    for (cluster_pairs, fwd, rev, string) in all_clusters:
+        for cluster_pair in cluster_pairs:
+                try:
+                        reads = insertion_regions_reads_bam.fetch(cluster_pair.get_chr(), cluster_pair.get_insertion_int_start(), cluster_pair.get_insertion_int_end())
+                        cluster_pair.calc_zygosity(reads)
+                except:
+                        print "error calculating zygosity of: "
+                        print cluster_pair
+                        raise
+    print "Done calculating zygosity of each cluster pair"
+
+
     del read_pair_one_overlap_TE_list
     gc.collect()
     if mem_debug:
