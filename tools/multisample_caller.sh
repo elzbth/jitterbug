@@ -6,7 +6,9 @@ prefix=$3
 
 cat $filtered_dir/* > $prefix.all_filtered.gff3
 
-mergeBed -i $prefix.all_filtered.gff3 >  $prefix.all_filtered.merged.gff3
+sortBed -i $prefix.all_filtered.gff3 > $prefix.all_filtered.sorted.gff3
+
+mergeBed -i $prefix.all_filtered.sorted.gff3 >  $prefix.all_filtered.merged.gff3
 
 for file in $unfiltered_dir/*.gff3
 do name=$(basename $file)

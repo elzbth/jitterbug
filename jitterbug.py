@@ -16,8 +16,8 @@
 
 
 
-import getopt,sys
-import argparse
+import getopt,sys,os
+import argparse,stat
 from Run_TE_ID_reseq import *
 from Run_TE_ID_reseq_streaming import *
 
@@ -38,8 +38,7 @@ def main(argv):
     #flags for debug
     # parser.add_argument("--keep_temp", help="do not delete temp files: bam of discordant reads", action="store_true")
     parser.add_argument("--pre_filter", help="pre-filter reads with samtools, and save intermediate filtered read subset", action="store_true")
-    # parser.add_argument("--mem", help="bam file has been mapped with bwa-mem and you want to use split (=chimeric=supplementary) reads. If unset, bam files \
-    #    mapped with either bwa or bwa-mem can be used, but split reads will be ignored", action="store_true")
+    parser.add_argument("--mem", help="bam file has been mapped with bwa-mem and you want to use split (=chimeric=supplementary) reads. If unset, bam files mapped with either bwa or bwa-mem can be used, but split reads will be ignored", action="store_true")
 
     #optional arguments
     parser.add_argument("-l", "--lib_name", help="sample or library name, to be included in final gff output")
@@ -64,6 +63,18 @@ def main(argv):
     fail_string = "use jitterbug.py -h for complete option list"
 
     #check args
+    #check ouput folder write permission
+    output_folder = os.path.dirname(os.path.abspath(args.output_prefix))
+    print output_folder
+    print args.output_prefix 
+    if output_folder == "":
+       output_folder = os.getcwd()
+    st = os.stat(output_folder)
+    if bool(st.st_mode & stat.S_IXOTH) and bool(st.st_mode & stat.S_IROTH) and bool(st.st_mode & stat.S_IWOTH):
+       pass #its ok
+    else:
+       print "Error in output folder permissions"
+       parser.error( "please set to chmod -R 777 for %s"%output_folder)
 
     if not os.path.exists(args.mapped_reads):
         parser.error("error in required argument mapped_reads: file %s cannot be found. " % (args.mapped_reads))
@@ -111,7 +122,7 @@ def main(argv):
     #to generate a test bam file of input bam for testing: extracts read pairs where either read1 or read2 map to chr1 or chr2
     generate_test_bam = False
 
-    mem = False
+    mem = args.mem
 
     if args.pre_filter:
         run_jitterbug_streaming(args.mapped_reads, args.verbose, args.TE_annot, te_seqs, \
